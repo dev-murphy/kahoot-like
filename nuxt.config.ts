@@ -10,11 +10,6 @@ export default defineNuxtConfig({
       websocket: true
     }
   },
-  runtimeConfig: {
-    gameMasterUsername: process.env.GAME_MASTER_USERNAME || 'admin',
-    gameMasterPassword: process.env.GAME_MASTER_PASSWORD || '',
-    public: {}
-  },
   app: {
     head: {
       title: 'QuizRush',
