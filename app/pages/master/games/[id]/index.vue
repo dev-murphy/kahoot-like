@@ -67,6 +67,10 @@ const importInput = ref<HTMLInputElement | null>(null)
 const importing = ref(false)
 const importError = ref('')
 
+const selectMode = ref(false)
+const selectedIds = ref<Set<string>>(new Set())
+const bulkDeleting = ref(false)
+
 const TYPE_LABELS: Record<string, { label: string; icon: string }> = {
   quiz: { label: 'Quiz', icon: '🟥🟦' },
   true_false: { label: 'True or False', icon: '✓✕' },
@@ -125,6 +129,41 @@ async function deleteQuestion(q: Question) {
   if (!confirm('Delete this question?')) return
   await $fetch(`/api/games/${gameId}/questions/${q.id}`, { method: 'DELETE' })
   await refresh()
+}
+
+function toggleSelectMode() {
+  selectMode.value = !selectMode.value
+  selectedIds.value = new Set()
+}
+
+function toggleSelected(id: string) {
+  const next = new Set(selectedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selectedIds.value = next
+}
+
+function toggleSelectAll() {
+  selectedIds.value =
+    selectedIds.value.size === questions.value.length ? new Set() : new Set(questions.value.map((q) => q.id))
+}
+
+async function bulkDelete() {
+  const count = selectedIds.value.size
+  if (count === 0) return
+  if (!confirm(`Delete ${count} selected question${count === 1 ? '' : 's'}?`)) return
+  bulkDeleting.value = true
+  try {
+    await $fetch(`/api/games/${gameId}/questions/bulk-delete`, {
+      method: 'POST',
+      body: { ids: [...selectedIds.value] }
+    })
+    selectMode.value = false
+    selectedIds.value = new Set()
+    await refresh()
+  } finally {
+    bulkDeleting.value = false
+  }
 }
 
 async function moveQuestion(idx: number, dir: -1 | 1) {
@@ -197,11 +236,45 @@ const previewPublic = computed<PublicQuestion | null>(() =>
       <section>
         <div class="mb-3 flex items-center justify-between">
           <h2 class="font-display text-lg font-bold text-slate-800">Questions ({{ questions.length }})</h2>
+          <button
+            v-if="questions.length > 0"
+            type="button"
+            class="text-xs font-bold text-indigo-500 hover:underline"
+            @click="toggleSelectMode"
+          >
+            {{ selectMode ? 'Cancel' : 'Select' }}
+          </button>
+        </div>
+
+        <div v-if="selectMode" class="mb-3 flex items-center justify-between rounded-2xl bg-indigo-50 px-4 py-2">
+          <label class="flex items-center gap-2 text-sm font-semibold text-indigo-700">
+            <input
+              type="checkbox"
+              :checked="selectedIds.size === questions.length && questions.length > 0"
+              @change="toggleSelectAll"
+            />
+            {{ selectedIds.size }} selected
+          </label>
+          <button
+            type="button"
+            class="btn-touch rounded-lg bg-red-500 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
+            :disabled="selectedIds.size === 0 || bulkDeleting"
+            @click="bulkDelete"
+          >
+            {{ bulkDeleting ? 'Deleting…' : `Delete Selected (${selectedIds.size})` }}
+          </button>
         </div>
 
         <div class="flex flex-col gap-3">
           <div v-for="(q, idx) in questions" :key="q.id" class="card flex items-center gap-3 p-4">
-            <div class="flex flex-col gap-0.5 text-slate-300">
+            <input
+              v-if="selectMode"
+              type="checkbox"
+              class="h-5 w-5 shrink-0"
+              :checked="selectedIds.has(q.id)"
+              @change="toggleSelected(q.id)"
+            />
+            <div v-else class="flex flex-col gap-0.5 text-slate-300">
               <button type="button" class="disabled:opacity-20" :disabled="idx === 0" @click="moveQuestion(idx, -1)">▲</button>
               <button type="button" class="disabled:opacity-20" :disabled="idx === questions.length - 1" @click="moveQuestion(idx, 1)">▼</button>
             </div>

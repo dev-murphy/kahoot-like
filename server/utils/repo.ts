@@ -244,6 +244,14 @@ export function deleteQuestion(id: string): void {
   db.prepare('DELETE FROM questions WHERE id = ?').run(id)
 }
 
+export function deleteQuestions(ids: string[]): void {
+  const stmt = db.prepare('DELETE FROM questions WHERE id = ?')
+  const tx = db.transaction((idList: string[]) => {
+    idList.forEach((id) => stmt.run(id))
+  })
+  tx(ids)
+}
+
 export function reorderQuestions(gameId: string, orderedIds: string[]): void {
   const stmt = db.prepare('UPDATE questions SET order_index = ? WHERE id = ? AND game_id = ?')
   const tx = db.transaction((ids: string[]) => {
