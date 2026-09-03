@@ -57,7 +57,7 @@ function teamAnswered(teamId: string) {
     <main class="mx-auto max-w-5xl px-6 py-8">
       <!-- Active question -->
       <section v-if="liveGame.game?.status === 'QUESTION_ACTIVE' && liveGame.currentQuestion" class="mb-8">
-        <h1 class="mb-6 text-center font-display text-3xl font-extrabold">{{ liveGame.currentQuestion.question.text }}</h1>
+        <h1 class="mb-6 text-center font-display text-2xl font-extrabold sm:text-3xl">{{ liveGame.currentQuestion.question.text }}</h1>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div
             v-for="team in liveGame.teams"
@@ -66,9 +66,9 @@ function teamAnswered(teamId: string) {
             :class="teamAnswered(team.id) ? 'ring-emerald-400 bg-emerald-500/10' : 'ring-white/10 bg-white/5'"
           >
             <span class="h-4 w-4 shrink-0 rounded-full" :style="{ backgroundColor: team.color }" />
-            <span class="flex-1 font-semibold">{{ team.name }}</span>
-            <span v-if="teamAnswered(team.id)" class="text-emerald-400">✓ answered</span>
-            <span v-else class="text-white/30">…</span>
+            <span class="min-w-0 flex-1 truncate font-semibold">{{ team.name }}</span>
+            <span v-if="teamAnswered(team.id)" class="shrink-0 text-emerald-400">✓ answered</span>
+            <span v-else class="shrink-0 text-white/30">…</span>
           </div>
         </div>
       </section>

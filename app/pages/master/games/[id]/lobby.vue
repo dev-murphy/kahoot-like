@@ -64,14 +64,14 @@ const teamPlayerCount = (teamId: string) => liveGame.players.filter((p) => p.tea
       </div>
     </header>
 
-    <main class="mx-auto max-w-5xl px-6 py-8">
+    <main class="mx-auto max-w-5xl px-6 py-8 pb-28">
       <h1 class="mb-1 font-display text-3xl font-extrabold text-slate-800">{{ liveGame.game?.title }}</h1>
       <p class="mb-8 text-slate-400">Waiting in lobby · {{ liveGame.players.length }} player(s) joined</p>
 
       <div class="grid gap-6 lg:grid-cols-[320px_1fr]">
         <div class="card flex flex-col items-center gap-4 p-6 text-center">
           <p class="text-xs font-bold uppercase tracking-widest text-slate-400">Game PIN</p>
-          <p class="font-display text-5xl font-extrabold tracking-widest text-indigo-700">{{ liveGame.game?.pin }}</p>
+          <p class="break-all font-display text-4xl font-extrabold tracking-widest text-indigo-700 sm:text-5xl">{{ liveGame.game?.pin }}</p>
           <QrCode v-if="joinUrl" :value="joinUrl" :size="200" />
           <button type="button" class="btn-touch w-full rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-600" @click="copyLink">
             {{ copied ? 'Copied!' : 'Copy Join Link' }}
@@ -93,21 +93,21 @@ const teamPlayerCount = (teamId: string) => liveGame.players.filter((p) => p.tea
     </main>
 
     <div class="fixed inset-x-0 bottom-0 border-t border-slate-200 bg-white/90 backdrop-blur">
-      <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        <p class="text-sm text-slate-400">
+      <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-4">
+        <p class="min-w-0 truncate text-sm text-slate-400">
           {{ liveGame.teams.length }} team(s) ·
           {{ liveGame.teams.map((t) => `${t.name} (${teamPlayerCount(t.id)})`).join(', ') || 'no teams yet' }}
         </p>
         <button
           v-if="!confirmingStart"
           type="button"
-          class="btn-touch rounded-2xl bg-emerald-600 px-6 py-3 font-display font-bold text-white shadow-lg disabled:opacity-40"
+          class="btn-touch shrink-0 rounded-2xl bg-emerald-600 px-6 py-3 font-display font-bold text-white shadow-lg disabled:opacity-40"
           :disabled="liveGame.players.length === 0"
           @click="confirmingStart = true"
         >
           Start Game
         </button>
-        <div v-else class="flex items-center gap-3">
+        <div v-else class="flex flex-wrap items-center gap-3">
           <span class="font-semibold text-slate-600">Ready to start?</span>
           <button type="button" class="btn-touch rounded-xl px-4 py-2 font-bold text-slate-500" @click="confirmingStart = false">Cancel</button>
           <button

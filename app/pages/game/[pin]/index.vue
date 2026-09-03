@@ -71,15 +71,15 @@ const iWon = computed(() => liveGame.finalLeaderboard?.[0]?.teamId === liveGame.
 
     <template v-else-if="liveGame.game">
       <!-- Persistent header -->
-      <header v-if="liveGame.self" class="flex items-center justify-between px-4 py-3">
-        <div class="flex items-center gap-2">
-          <span class="h-3 w-3 rounded-full" :style="{ backgroundColor: liveGame.self.team?.color ?? '#94a3b8' }" />
-          <span class="font-semibold">{{ liveGame.self.team?.name ?? 'No team yet' }}</span>
+      <header v-if="liveGame.self" class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 px-4 py-3">
+        <div class="flex min-w-0 items-center gap-2">
+          <span class="h-3 w-3 shrink-0 rounded-full" :style="{ backgroundColor: liveGame.self.team?.color ?? '#94a3b8' }" />
+          <span class="truncate font-semibold">{{ liveGame.self.team?.name ?? 'No team yet' }}</span>
         </div>
-        <span v-if="liveGame.currentQuestion" class="text-sm text-white/60">
+        <span v-if="liveGame.currentQuestion" class="shrink-0 text-sm text-white/60">
           Q{{ liveGame.currentQuestion.index + 1 }}/{{ liveGame.currentQuestion.total }}
         </span>
-        <span v-if="status !== 'open'" class="rounded-full bg-red-500/80 px-2 py-0.5 text-xs font-bold">Reconnecting…</span>
+        <span v-if="status !== 'open'" class="shrink-0 rounded-full bg-red-500/80 px-2 py-0.5 text-xs font-bold">Reconnecting…</span>
       </header>
 
       <!-- LOBBY -->

@@ -77,18 +77,18 @@ async function copyLink(team: Team) {
     </div>
 
     <div v-for="team in teams" :key="team.id" class="card flex flex-col gap-2 p-4">
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-3">
         <span class="h-6 w-6 shrink-0 rounded-full ring-2 ring-white shadow" :style="{ backgroundColor: team.color }" />
         <input
           :value="team.name"
           type="text"
-          class="flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1 font-display text-lg font-bold text-slate-800 hover:border-slate-200 focus:border-indigo-400 focus:outline-none"
+          class="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1 font-display text-lg font-bold text-slate-800 hover:border-slate-200 focus:border-indigo-400 focus:outline-none"
           @change="renameTeam(team, ($event.target as HTMLInputElement).value)"
         />
-        <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
+        <span class="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
           {{ memberCount(team.id) }} player{{ memberCount(team.id) === 1 ? '' : 's' }}
         </span>
-        <button type="button" class="text-slate-300 hover:text-red-500" @click="removeTeam(team)">✕</button>
+        <button type="button" class="shrink-0 text-slate-300 hover:text-red-500" @click="removeTeam(team)">✕</button>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <button

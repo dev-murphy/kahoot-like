@@ -31,10 +31,10 @@ async function kick(player: Player) {
     <div
       v-for="player in players"
       :key="player.id"
-      class="flex items-center gap-3 rounded-xl bg-white px-4 py-2.5 shadow-sm ring-1 ring-slate-900/5"
+      class="flex flex-wrap items-center gap-3 rounded-xl bg-white px-4 py-2.5 shadow-sm ring-1 ring-slate-900/5"
     >
       <span class="h-2.5 w-2.5 shrink-0 rounded-full" :class="player.connected ? 'bg-emerald-500' : 'bg-slate-300'" />
-      <span class="flex-1 truncate font-semibold text-slate-800">{{ player.name }}</span>
+      <span class="min-w-0 flex-1 truncate font-semibold text-slate-800">{{ player.name }}</span>
       <span
         v-if="teamOf(player)"
         class="hidden rounded-full px-2 py-0.5 text-xs font-bold text-white sm:inline"
@@ -44,13 +44,13 @@ async function kick(player: Player) {
       </span>
       <select
         :value="player.teamId ?? ''"
-        class="rounded-lg border border-slate-200 px-2 py-1 text-sm"
+        class="max-w-[8rem] shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-sm sm:max-w-[10rem]"
         @change="assign(player, ($event.target as HTMLSelectElement).value)"
       >
         <option value="">Unassigned</option>
         <option v-for="t in teams" :key="t.id" :value="t.id">{{ t.name }}</option>
       </select>
-      <button type="button" class="text-slate-300 hover:text-red-500" title="Remove player" @click="kick(player)">✕</button>
+      <button type="button" class="shrink-0 text-slate-300 hover:text-red-500" title="Remove player" @click="kick(player)">✕</button>
     </div>
   </div>
 </template>

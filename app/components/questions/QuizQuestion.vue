@@ -36,7 +36,7 @@ function pick(idx: number) {
       <svg v-else-if="idx === 1" viewBox="0 0 24 24" class="h-7 w-7 shrink-0 fill-white/90"><path :d="shapes[1]" /></svg>
       <span v-else-if="idx === 2" class="h-7 w-7 shrink-0 rounded-full bg-white/90" />
       <span v-else class="h-7 w-7 shrink-0 rounded-md bg-white/90" />
-      <span class="flex-1">{{ choice }}</span>
+      <span class="min-w-0 flex-1 break-words">{{ choice }}</span>
     </button>
   </div>
 </template>
