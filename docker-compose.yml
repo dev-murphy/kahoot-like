@@ -1,0 +1,26 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      GAME_MASTER_USERNAME: ${GAME_MASTER_USERNAME}
+      GAME_MASTER_PASSWORD: ${GAME_MASTER_PASSWORD}
+    volumes:
+      - game-data:/app/data
+    networks:
+      - dokploy-network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.quizrush.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.quizrush.entrypoints=websecure
+      - traefik.http.routers.quizrush.tls.certResolver=letsencrypt
+      - traefik.http.services.quizrush.loadbalancer.server.port=3000
+
+volumes:
+  game-data:
+
+networks:
+  dokploy-network:
+    external: true

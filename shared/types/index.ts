@@ -1,0 +1,222 @@
+// ============================================================================
+// Core domain types shared between client (Nuxt app) and server (Nitro).
+// ============================================================================
+
+export type QuestionType =
+  | 'quiz'
+  | 'true_false'
+  | 'type_answer'
+  | 'slider'
+  | 'pin_answer'
+  | 'puzzle'
+
+export interface QuizConfig {
+  choices: string[] // 2-4 options
+  correctIndex: number
+}
+
+export interface TrueFalseConfig {
+  correctAnswer: boolean
+}
+
+export interface TypeAnswerConfig {
+  correctAnswer: string
+  acceptableAnswers?: string[]
+}
+
+export interface SliderConfig {
+  min: number
+  max: number
+  correctValue: number
+  tolerance: number
+  step?: number
+}
+
+export interface PinAnswerConfig {
+  imageUrl: string
+  correctX: number // normalized 0..1 relative to image width
+  correctY: number // normalized 0..1 relative to image height
+  radius: number // normalized 0..1, tolerance radius relative to image width
+}
+
+export interface PuzzleConfig {
+  items: string[] // canonical/correct order of the items
+}
+
+export type QuestionConfig =
+  | QuizConfig
+  | TrueFalseConfig
+  | TypeAnswerConfig
+  | SliderConfig
+  | PinAnswerConfig
+  | PuzzleConfig
+
+export interface Question {
+  id: string
+  gameId: string
+  type: QuestionType
+  text: string
+  config: QuestionConfig
+  timeLimit: number // seconds
+  points: number
+  order: number
+}
+
+/** Question shape sent to players — correct-answer fields stripped. */
+export type PublicQuestion = Omit<Question, 'config'> & {
+  config: Record<string, unknown>
+}
+
+export type GameStatus =
+  | 'DRAFT'
+  | 'LOBBY'
+  | 'ACTIVE'
+  | 'QUESTION_ACTIVE'
+  | 'QUESTION_RESULTS'
+  | 'FINISHED'
+  | 'CANCELLED'
+
+export interface Game {
+  id: string
+  title: string
+  pin: string | null
+  status: GameStatus
+  currentQuestionIndex: number
+  resultDelaySeconds: number
+  paused: boolean
+  createdAt: number
+  startedAt: number | null
+  finishedAt: number | null
+}
+
+export interface Team {
+  id: string
+  gameId: string
+  name: string
+  color: string
+  score: number
+}
+
+export interface Player {
+  id: string
+  gameId: string
+  teamId: string | null
+  name: string
+  connected: boolean
+  joinedAt: number
+}
+
+export interface AnswerRecord {
+  id: string
+  questionId: string
+  playerId: string
+  teamId: string
+  answer: unknown
+  correct: boolean
+  score: number
+  submittedAt: number
+}
+
+export const TEAM_COLORS: { name: string; value: string }[] = [
+  { name: 'Red', value: '#EF4444' },
+  { name: 'Blue', value: '#3B82F6' },
+  { name: 'Yellow', value: '#EAB308' },
+  { name: 'Green', value: '#22C55E' },
+  { name: 'Purple', value: '#A855F7' },
+  { name: 'Orange', value: '#F97316' },
+  { name: 'Pink', value: '#EC4899' },
+  { name: 'Teal', value: '#14B8A6' }
+]
+
+export const QUIZ_ANSWER_COLORS = ['#EF4444', '#3B82F6', '#EAB308', '#22C55E']
+export const QUIZ_ANSWER_SHAPES = ['triangle', 'diamond', 'circle', 'square'] as const
+
+export interface LeaderboardEntry {
+  teamId: string
+  name: string
+  color: string
+  score: number
+  rank: number
+  previousRank: number | null
+}
+
+export interface TeamQuestionResult {
+  teamId: string
+  teamName: string
+  color: string
+  correct: boolean
+  answered: boolean
+  scoreAwarded: number
+  totalScore: number
+}
+
+// ============================================================================
+// WebSocket protocol
+// ============================================================================
+
+export interface QuestionStartedPayload {
+  question: PublicQuestion
+  index: number
+  total: number
+  startedAt: number
+  endsAt: number
+}
+
+export interface QuestionEndedPayload {
+  question: PublicQuestion
+  correctAnswer: unknown
+  teamResults: TeamQuestionResult[]
+  leaderboard: LeaderboardEntry[]
+  isLastQuestion: boolean
+  nextStartsAt: number | null
+}
+
+export interface SelfState {
+  player: Player
+  team: Team | null
+}
+
+export interface FullSyncState {
+  game: Game
+  teams: Team[]
+  players: Player[]
+  self: SelfState | null
+  totalQuestions: number
+  currentQuestion: QuestionStartedPayload | null
+  lastResults: QuestionEndedPayload | null
+  leaderboard: LeaderboardEntry[]
+  myAnswerLocked: boolean
+  myTeamLocked: boolean
+  lockedTeamIds: string[]
+}
+
+export type ServerMessage =
+  | { type: 'STATE_SYNC'; state: FullSyncState }
+  | { type: 'PLAYER_JOINED'; player: Player }
+  | { type: 'PLAYER_LEFT'; playerId: string }
+  | { type: 'PLAYER_UPDATED'; player: Player }
+  | { type: 'TEAM_UPDATED'; team: Team }
+  | { type: 'TEAM_CREATED'; team: Team }
+  | { type: 'TEAM_DELETED'; teamId: string }
+  | { type: 'GAME_STARTED'; startedAt: number }
+  | { type: 'QUESTION_STARTED'; payload: QuestionStartedPayload }
+  | {
+      type: 'ANSWER_ACK'
+      correct: boolean
+      locked: boolean
+      message: string
+      scoreAwarded?: number
+    }
+  | { type: 'TEAM_ANSWERED'; teamId: string; correct: boolean; answeredByName?: string }
+  | { type: 'QUESTION_ENDED'; payload: QuestionEndedPayload }
+  | { type: 'GAME_PAUSED' }
+  | { type: 'GAME_RESUMED' }
+  | { type: 'GAME_FINISHED'; leaderboard: LeaderboardEntry[] }
+  | { type: 'GAME_CANCELLED'; message: string }
+  | { type: 'KICKED'; message: string }
+  | { type: 'ERROR'; message: string }
+  | { type: 'PONG' }
+
+export type ClientMessage =
+  | { type: 'ANSWER_SUBMIT'; questionId: string; answer: unknown }
+  | { type: 'PING' }
