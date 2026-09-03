@@ -206,6 +206,34 @@ export function createQuestion(input: Omit<Question, 'id'>): Question {
   return getQuestion(id)!
 }
 
+export function createQuestions(
+  gameId: string,
+  startOrder: number,
+  inputs: Array<Omit<Question, 'id' | 'gameId' | 'order'>>
+): Question[] {
+  const ids = inputs.map(() => randomUUID())
+  const insert = db.prepare(
+    `INSERT INTO questions (id, game_id, type, text, config, time_limit, points, order_index)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+  const tx = db.transaction((rows: Array<{ id: string; input: Omit<Question, 'id' | 'gameId' | 'order'> }>) => {
+    rows.forEach(({ id, input }, idx) => {
+      insert.run(
+        id,
+        gameId,
+        input.type,
+        input.text,
+        JSON.stringify(input.config),
+        input.timeLimit,
+        input.points,
+        startOrder + idx
+      )
+    })
+  })
+  tx(inputs.map((input, i) => ({ id: ids[i]!, input })))
+  return ids.map((id) => getQuestion(id)!)
+}
+
 export function updateQuestion(id: string, input: Omit<Question, 'id' | 'gameId'>): void {
   db.prepare(
     `UPDATE questions SET type = ?, text = ?, config = ?, time_limit = ?, points = ?, order_index = ? WHERE id = ?`

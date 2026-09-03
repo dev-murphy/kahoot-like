@@ -63,7 +63,7 @@ export function validateQuestionInput(body: {
       }
       if (c.max! <= c.min!) bad('Slider max must be greater than min')
       if (c.correctValue! < c.min! || c.correctValue! > c.max!) bad('Correct value must be within min/max range')
-      if (c.tolerance! <= 0) bad('Tolerance must be greater than 0')
+      if (c.tolerance! < 0) bad('Tolerance cannot be negative')
       break
     }
     case 'pin_answer': {

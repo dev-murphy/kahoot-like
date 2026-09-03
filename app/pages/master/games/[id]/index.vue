@@ -63,6 +63,9 @@ watch(titleDraft, (v) => {
 const showEditor = ref(false)
 const editingQuestion = ref<Question | null>(null)
 const previewQuestion = ref<Question | null>(null)
+const importInput = ref<HTMLInputElement | null>(null)
+const importing = ref(false)
+const importError = ref('')
 
 const TYPE_LABELS: Record<string, { label: string; icon: string }> = {
   quiz: { label: 'Quiz', icon: '🟥🟦' },
@@ -85,6 +88,37 @@ async function onSaved() {
   showEditor.value = false
   editingQuestion.value = null
   await refresh()
+}
+
+function openImport() {
+  importError.value = ''
+  importInput.value?.click()
+}
+
+async function onImportFile(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+
+  importError.value = ''
+  importing.value = true
+  try {
+    const text = await file.text()
+    const parsed = JSON.parse(text)
+    const questions = Array.isArray(parsed) ? parsed : parsed?.questions
+    if (!Array.isArray(questions)) throw new Error('JSON must be an array of questions or an object with a "questions" array')
+
+    await $fetch(`/api/games/${gameId}/questions/import`, { method: 'POST', body: { questions } })
+    await refresh()
+  } catch (err: unknown) {
+    importError.value =
+      (err as { data?: { statusMessage?: string } })?.data?.statusMessage ??
+      (err as { message?: string })?.message ??
+      'Failed to import questions'
+  } finally {
+    importing.value = false
+  }
 }
 
 async function deleteQuestion(q: Question) {
@@ -191,13 +225,25 @@ const previewPublic = computed<PublicQuestion | null>(() =>
 
           <div v-if="questions.length === 0" class="card p-8 text-center text-slate-400">No questions yet.</div>
 
-          <button
-            type="button"
-            class="btn-touch rounded-2xl border-2 border-dashed border-indigo-200 py-5 font-display font-bold text-indigo-500 hover:bg-indigo-50"
-            @click="openAdd"
-          >
-            + Add Question
-          </button>
+          <div class="flex gap-3">
+            <button
+              type="button"
+              class="btn-touch flex-1 rounded-2xl border-2 border-dashed border-indigo-200 py-5 font-display font-bold text-indigo-500 hover:bg-indigo-50"
+              @click="openAdd"
+            >
+              + Add Question
+            </button>
+            <button
+              type="button"
+              class="btn-touch flex-1 rounded-2xl border-2 border-dashed border-slate-200 py-5 font-display font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+              :disabled="importing"
+              @click="openImport"
+            >
+              {{ importing ? 'Uploading…' : '⬆ Upload JSON' }}
+            </button>
+            <input ref="importInput" type="file" accept=".json,application/json" class="hidden" @change="onImportFile" />
+          </div>
+          <p v-if="importError" class="text-sm font-semibold text-red-500">{{ importError }}</p>
         </div>
       </section>
     </main>
