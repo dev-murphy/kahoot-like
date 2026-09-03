@@ -134,7 +134,7 @@ const iWon = computed(() => liveGame.finalLeaderboard?.[0]?.teamId === liveGame.
 
       <!-- RESULTS -->
       <main v-else-if="liveGame.game.status === 'QUESTION_RESULTS' && liveGame.lastResults" class="flex flex-col items-center gap-6 px-4 py-8">
-        <PlayerResult :result="myTeamResult" :score-awarded="myTeamResult?.scoreAwarded" />
+        <PlayerResult :result="myTeamResult" :score-awarded="myTeamResult?.scoreAwarded" :last-results="liveGame.lastResults" />
         <div class="w-full max-w-sm card p-5 text-slate-800">
           <h2 class="mb-3 text-center font-display text-lg font-bold">Leaderboard</h2>
           <GameLeaderboard :entries="liveGame.leaderboard" compact />

@@ -22,7 +22,7 @@ const questionIndex = computed(() => liveGame.currentQuestion?.index ?? liveGame
 const acting = ref(false)
 const confirmEnd = ref(false)
 
-async function control(action: 'pause' | 'resume' | 'skip' | 'end' | 'restart') {
+async function control(action: 'pause' | 'resume' | 'skip' | 'end' | 'restart' | 'next') {
   acting.value = true
   try {
     await $fetch(`/api/games/${gameId}/control`, { method: 'POST', body: { action } })
@@ -129,6 +129,14 @@ function teamAnswered(teamId: string) {
           @click="control('skip')"
         >
           ⏭ Skip Question
+        </button>
+        <button
+          type="button"
+          class="btn-touch rounded-xl bg-indigo-500 px-4 py-2 text-sm font-bold hover:bg-indigo-400 disabled:opacity-40"
+          :disabled="acting || liveGame.game?.status !== 'QUESTION_RESULTS'"
+          @click="control('next')"
+        >
+          ⏩ Next Question
         </button>
         <button
           type="button"

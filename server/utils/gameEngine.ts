@@ -386,6 +386,18 @@ export function endGameEarly(gameId: string): void {
   finishGame(gameId)
 }
 
+export function advanceToNextQuestion(gameId: string): void {
+  const game = repo.getGame(gameId)
+  const rt = getRuntime(gameId)
+  if (!game || game.status !== 'QUESTION_RESULTS' || !rt.lastResults) return
+  clearTimers(rt)
+  if (rt.lastResults.isLastQuestion) {
+    finishGame(gameId)
+  } else {
+    startQuestion(gameId, game.currentQuestionIndex + 1)
+  }
+}
+
 export function restartGame(gameId: string): Game {
   const game = repo.getGame(gameId)
   if (!game) throw new Error('Game not found')

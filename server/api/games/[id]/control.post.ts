@@ -1,7 +1,7 @@
 import { requireGameMaster } from '../../../utils/auth'
-import { endGameEarly, pauseGame, restartQuestion, resumeGame, skipQuestion } from '../../../utils/gameEngine'
+import { advanceToNextQuestion, endGameEarly, pauseGame, restartQuestion, resumeGame, skipQuestion } from '../../../utils/gameEngine'
 
-type ControlAction = 'pause' | 'resume' | 'skip' | 'end' | 'restart'
+type ControlAction = 'pause' | 'resume' | 'skip' | 'end' | 'restart' | 'next'
 
 export default defineEventHandler(async (event) => {
   requireGameMaster(event)
@@ -17,6 +17,9 @@ export default defineEventHandler(async (event) => {
       break
     case 'skip':
       skipQuestion(gameId)
+      break
+    case 'next':
+      advanceToNextQuestion(gameId)
       break
     case 'end':
       endGameEarly(gameId)

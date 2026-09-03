@@ -31,7 +31,7 @@ const urgent = computed(() => remainingSeconds.value <= 5 && remainingSeconds.va
       class="font-display font-bold tabular-nums transition-colors"
       :class="[
         size === 'lg' ? 'text-5xl' : 'text-2xl',
-        urgent ? 'text-red-500 animate-wiggle' : 'text-slate-800'
+        urgent ? 'text-red-500 animate-wiggle' : 'text-white'
       ]"
     >
       {{ paused ? '⏸' : remainingSeconds }}
