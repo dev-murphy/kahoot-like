@@ -31,11 +31,11 @@ async function submit() {
 
       <label class="flex flex-col gap-1">
         <span class="text-sm font-semibold text-slate-600">Username</span>
-        <input v-model="username" type="text" autocomplete="username" class="rounded-xl border border-slate-200 px-4 py-3" autofocus />
+        <input v-model="username" type="text" autocomplete="username" class="rounded-xl border border-slate-200 px-4 py-3 text-black" autofocus />
       </label>
       <label class="flex flex-col gap-1">
         <span class="text-sm font-semibold text-slate-600">Password</span>
-        <input v-model="password" type="password" autocomplete="current-password" class="rounded-xl border border-slate-200 px-4 py-3" />
+        <input v-model="password" type="password" autocomplete="current-password" class="rounded-xl border border-slate-200 px-4 py-3 text-black" />
       </label>
 
       <p v-if="error" class="rounded-lg bg-red-50 px-3 py-2 text-center text-sm font-medium text-red-600">{{ error }}</p>
