@@ -1,10 +1,17 @@
 <script setup lang="ts">
-const props = defineProps<{ items: string[]; disabled?: boolean }>()
+const props = defineProps<{ items: string[]; disabled?: boolean; retryToken?: number }>()
 const emit = defineEmits<{ submit: [answer: string[]] }>()
 
 const order = ref<string[]>([...props.items])
 const submitted = ref(false)
 const itemEls = ref<(HTMLLIElement | null)[]>([])
+
+watch(
+  () => props.retryToken,
+  () => {
+    submitted.value = false
+  }
+)
 
 const dragIndex = ref<number | null>(null)
 const dragOffsetY = ref(0)

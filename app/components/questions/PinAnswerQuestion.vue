@@ -1,10 +1,17 @@
 <script setup lang="ts">
-const props = defineProps<{ imageUrl: string; disabled?: boolean }>()
+const props = defineProps<{ imageUrl: string; disabled?: boolean; retryToken?: number }>()
 const emit = defineEmits<{ submit: [answer: { x: number; y: number }] }>()
 
 const containerRef = ref<HTMLElement | null>(null)
 const point = ref<{ x: number; y: number } | null>(null)
 const submitted = ref(false)
+
+watch(
+  () => props.retryToken,
+  () => {
+    submitted.value = false
+  }
+)
 
 function pick(e: MouseEvent | TouchEvent) {
   if (props.disabled || submitted.value || !containerRef.value) return

@@ -1,11 +1,20 @@
 <script setup lang="ts">
-const props = defineProps<{ disabled?: boolean }>()
+const props = defineProps<{ disabled?: boolean; retryToken?: number }>()
 const emit = defineEmits<{ submit: [answer: boolean] }>()
 const selected = ref<boolean | null>(null)
+const submitted = ref(false)
+
+watch(
+  () => props.retryToken,
+  () => {
+    submitted.value = false
+  }
+)
 
 function pick(value: boolean) {
-  if (props.disabled || selected.value !== null) return
+  if (props.disabled || submitted.value) return
   selected.value = value
+  submitted.value = true
   emit('submit', value)
 }
 </script>
@@ -16,7 +25,7 @@ function pick(value: boolean) {
       type="button"
       class="btn-touch flex min-h-[160px] flex-col items-center justify-center gap-2 rounded-3xl bg-emerald-500 text-4xl font-display font-extrabold text-white shadow-lg disabled:opacity-60"
       :class="selected === true ? 'ring-4 ring-white/80 scale-[0.98]' : ''"
-      :disabled="disabled || selected !== null"
+      :disabled="disabled || submitted"
       @click="pick(true)"
     >
       <span class="text-5xl">✓</span>
@@ -26,7 +35,7 @@ function pick(value: boolean) {
       type="button"
       class="btn-touch flex min-h-[160px] flex-col items-center justify-center gap-2 rounded-3xl bg-red-500 text-4xl font-display font-extrabold text-white shadow-lg disabled:opacity-60"
       :class="selected === false ? 'ring-4 ring-white/80 scale-[0.98]' : ''"
-      :disabled="disabled || selected !== null"
+      :disabled="disabled || submitted"
       @click="pick(false)"
     >
       <span class="text-5xl">✕</span>

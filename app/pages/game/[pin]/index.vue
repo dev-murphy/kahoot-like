@@ -15,14 +15,14 @@ const pin = String(route.params.pin)
 const liveGame = useLiveGameStore()
 liveGame.reset()
 
-const attemptKey = ref(0)
+const retryToken = ref(0)
 const showTutorial = ref(false)
 let ackTimer: ReturnType<typeof setTimeout> | null = null
 
 function handleMessage(msg: Parameters<typeof liveGame.applyServerMessage>[0]) {
   liveGame.applyServerMessage(msg)
   if (msg.type === 'ANSWER_ACK' && !msg.locked) {
-    attemptKey.value++
+    retryToken.value++
     if (ackTimer) clearTimeout(ackTimer)
     ackTimer = setTimeout(() => (liveGame.answerAck = null), 2200)
   }
@@ -135,7 +135,8 @@ const iWon = computed(() => liveGame.finalLeaderboard?.[0]?.teamId === liveGame.
           </div>
           <component
             :is="questionComponents[liveGame.currentQuestion.question.type]"
-            :key="attemptKey"
+            :key="liveGame.currentQuestion.startedAt"
+            :retry-token="retryToken"
             v-bind="liveGame.currentQuestion.question.config"
             @submit="submitAnswer"
           />

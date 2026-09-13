@@ -1,9 +1,16 @@
 <script setup lang="ts">
-const props = defineProps<{ disabled?: boolean }>()
+const props = defineProps<{ disabled?: boolean; retryToken?: number }>()
 const emit = defineEmits<{ submit: [answer: string] }>()
 
 const value = ref('')
 const submitted = ref(false)
+
+watch(
+  () => props.retryToken,
+  () => {
+    submitted.value = false
+  }
+)
 
 function submit() {
   if (props.disabled || submitted.value || !value.value.trim()) return

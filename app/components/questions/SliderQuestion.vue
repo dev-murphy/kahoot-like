@@ -1,9 +1,16 @@
 <script setup lang="ts">
-const props = defineProps<{ min: number; max: number; step?: number; disabled?: boolean }>()
+const props = defineProps<{ min: number; max: number; step?: number; disabled?: boolean; retryToken?: number }>()
 const emit = defineEmits<{ submit: [answer: number] }>()
 
 const value = ref(Math.round((props.min + props.max) / 2))
 const submitted = ref(false)
+
+watch(
+  () => props.retryToken,
+  () => {
+    submitted.value = false
+  }
+)
 
 function clamp(value: number) {
   return Math.min(props.max, Math.max(props.min, value))
@@ -40,7 +47,7 @@ function submit() {
         :min="min"
         :max="max"
         :step="step ?? 1"
-        class="h-4 w-full cursor-pointer appearance-none rounded-full bg-indigo-200 accent-indigo-600 disabled:opacity-60"
+        class="slider-range h-4 w-full cursor-pointer appearance-none rounded-full bg-indigo-200 accent-indigo-600 disabled:opacity-60"
         :disabled="disabled || submitted"
       />
       <button
@@ -67,3 +74,34 @@ function submit() {
     </button>
   </div>
 </template>
+
+<style scoped>
+.slider-range::-webkit-slider-thumb {
+  appearance: none;
+  height: 36px;
+  width: 36px;
+  border-radius: 9999px;
+  background: #4f46e5;
+  border: 4px solid white;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.35);
+  cursor: pointer;
+}
+
+.slider-range::-moz-range-thumb {
+  height: 36px;
+  width: 36px;
+  border-radius: 9999px;
+  background: #4f46e5;
+  border: 4px solid white;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.35);
+  cursor: pointer;
+}
+
+.slider-range:disabled::-webkit-slider-thumb {
+  opacity: 0.6;
+}
+
+.slider-range:disabled::-moz-range-thumb {
+  opacity: 0.6;
+}
+</style>

@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import { QUIZ_ANSWER_COLORS } from '#shared/types'
 
-const props = defineProps<{ choices: string[]; disabled?: boolean }>()
+const props = defineProps<{ choices: string[]; disabled?: boolean; retryToken?: number }>()
 const emit = defineEmits<{ submit: [answer: number] }>()
 
 const selected = ref<number | null>(null)
+const submitted = ref(false)
+
+watch(
+  () => props.retryToken,
+  () => {
+    submitted.value = false
+  }
+)
 
 const shapes: Record<number, string> = {
   0: 'M12 3 L21 20 L3 20 Z', // triangle
@@ -14,8 +22,9 @@ const shapes: Record<number, string> = {
 }
 
 function pick(idx: number) {
-  if (props.disabled || selected.value !== null) return
+  if (props.disabled || submitted.value) return
   selected.value = idx
+  submitted.value = true
   emit('submit', idx)
 }
 </script>
@@ -28,7 +37,7 @@ function pick(idx: number) {
       type="button"
       class="btn-touch card-answer flex min-h-[88px] items-center gap-3 rounded-2xl px-5 py-5 text-left text-lg font-bold text-white shadow-lg disabled:opacity-60"
       :style="{ backgroundColor: QUIZ_ANSWER_COLORS[idx] }"
-      :disabled="disabled || selected !== null"
+      :disabled="disabled || submitted"
       :class="selected === idx ? 'ring-4 ring-white/80 scale-[0.98]' : ''"
       @click="pick(idx)"
     >
