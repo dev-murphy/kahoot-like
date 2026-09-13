@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ClientMessage } from '#shared/types'
+import GameTutorial from '~/components/player/GameTutorial.vue'
 import PinAnswerQuestion from '~/components/questions/PinAnswerQuestion.vue'
 import PuzzleQuestion from '~/components/questions/PuzzleQuestion.vue'
 import QuizQuestion from '~/components/questions/QuizQuestion.vue'
@@ -15,6 +16,7 @@ const liveGame = useLiveGameStore()
 liveGame.reset()
 
 const attemptKey = ref(0)
+const showTutorial = ref(false)
 let ackTimer: ReturnType<typeof setTimeout> | null = null
 
 function handleMessage(msg: Parameters<typeof liveGame.applyServerMessage>[0]) {
@@ -99,6 +101,14 @@ const iWon = computed(() => liveGame.finalLeaderboard?.[0]?.teamId === liveGame.
         </div>
         <p v-else class="text-white/60">Waiting to be assigned a team…</p>
 
+        <button
+          type="button"
+          class="btn-touch rounded-full bg-white/10 px-5 py-2 text-sm font-bold text-white ring-1 ring-white/30"
+          @click="showTutorial = true"
+        >
+          📖 How to Play
+        </button>
+
         <PlayerWaiting message="Waiting for Game Master to start…" />
       </main>
 
@@ -160,5 +170,7 @@ const iWon = computed(() => liveGame.finalLeaderboard?.[0]?.teamId === liveGame.
     <div v-else class="flex min-h-screen items-center justify-center">
       <PlayerWaiting message="Connecting…" />
     </div>
+
+    <GameTutorial v-if="showTutorial" @close="showTutorial = false" />
   </div>
 </template>

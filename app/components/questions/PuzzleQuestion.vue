@@ -12,15 +12,6 @@ let dragStartY = 0
 let dragItemHeight = 0
 let activePointerId: number | null = null
 
-function move(idx: number, dir: -1 | 1) {
-  if (props.disabled || submitted.value) return
-  const target = idx + dir
-  if (target < 0 || target >= order.value.length) return
-  const copy = [...order.value]
-  ;[copy[idx], copy[target]] = [copy[target]!, copy[idx]!]
-  order.value = copy
-}
-
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
@@ -38,7 +29,7 @@ function startDrag(e: PointerEvent, idx: number) {
   dragItemHeight = el.getBoundingClientRect().height
   activePointerId = e.pointerId
 
-  ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   window.addEventListener('pointermove', onDragMove)
   window.addEventListener('pointerup', endDrag)
   window.addEventListener('pointercancel', endDrag)
@@ -91,42 +82,19 @@ function submit() {
         v-for="(item, idx) in order"
         :key="item"
         :ref="(el) => (itemEls[idx] = el as HTMLLIElement)"
-        class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow ring-1 ring-slate-900/5"
-        :class="dragIndex === idx ? 'relative z-10 shadow-xl ring-2 ring-indigo-400' : ''"
+        class="btn-touch flex touch-none select-none items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow ring-1 ring-slate-900/5"
+        :class="[
+          dragIndex === idx ? 'relative z-10 cursor-grabbing shadow-xl ring-2 ring-indigo-400' : 'cursor-grab',
+          disabled || submitted ? 'cursor-default opacity-60' : ''
+        ]"
         :style="dragIndex === idx ? { transform: `translateY(${dragOffsetY}px)`, transition: 'none' } : {}"
+        @pointerdown="startDrag($event, idx)"
       >
-        <button
-          type="button"
-          class="btn-touch flex h-9 w-9 shrink-0 touch-none select-none items-center justify-center rounded-lg bg-slate-100 text-slate-400 disabled:opacity-30"
-          :class="dragIndex === idx ? 'cursor-grabbing text-indigo-600' : 'cursor-grab'"
-          :disabled="disabled || submitted"
-          aria-label="Drag to reorder"
-          @pointerdown="startDrag($event, idx)"
-        >
-          ⠿
-        </button>
         <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 font-display font-bold text-white">
           {{ idx + 1 }}
         </span>
         <span class="min-w-0 flex-1 break-words font-semibold text-slate-800">{{ item }}</span>
-        <div class="flex flex-col gap-0.5">
-          <button
-            type="button"
-            class="btn-touch rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600 disabled:opacity-30"
-            :disabled="disabled || submitted || idx === 0"
-            @click="move(idx, -1)"
-          >
-            ▲
-          </button>
-          <button
-            type="button"
-            class="btn-touch rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600 disabled:opacity-30"
-            :disabled="disabled || submitted || idx === order.length - 1"
-            @click="move(idx, 1)"
-          >
-            ▼
-          </button>
-        </div>
+        <span class="shrink-0 text-lg text-slate-300" aria-hidden="true">⠿</span>
       </li>
     </ul>
     <button

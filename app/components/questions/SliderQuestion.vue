@@ -5,6 +5,15 @@ const emit = defineEmits<{ submit: [answer: number] }>()
 const value = ref(Math.round((props.min + props.max) / 2))
 const submitted = ref(false)
 
+function clamp(value: number) {
+  return Math.min(props.max, Math.max(props.min, value))
+}
+
+function adjust(delta: number) {
+  if (props.disabled || submitted.value) return
+  value.value = clamp(value.value + delta)
+}
+
 function submit() {
   if (props.disabled || submitted.value) return
   submitted.value = true
@@ -15,15 +24,35 @@ function submit() {
 <template>
   <div class="flex w-full max-w-lg flex-col items-center gap-6">
     <div class="font-display text-6xl font-extrabold text-indigo-700">{{ value }}</div>
-    <input
-      v-model.number="value"
-      type="range"
-      :min="min"
-      :max="max"
-      :step="step ?? 1"
-      class="h-4 w-full cursor-pointer appearance-none rounded-full bg-indigo-200 accent-indigo-600 disabled:opacity-60"
-      :disabled="disabled || submitted"
-    />
+    <div class="flex w-full items-center gap-3">
+      <button
+        type="button"
+        class="btn-touch flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-2xl font-bold text-indigo-700 disabled:opacity-40"
+        :disabled="disabled || submitted || value <= min"
+        aria-label="Decrease by 1"
+        @click="adjust(-1)"
+      >
+        −
+      </button>
+      <input
+        v-model.number="value"
+        type="range"
+        :min="min"
+        :max="max"
+        :step="step ?? 1"
+        class="h-4 w-full cursor-pointer appearance-none rounded-full bg-indigo-200 accent-indigo-600 disabled:opacity-60"
+        :disabled="disabled || submitted"
+      />
+      <button
+        type="button"
+        class="btn-touch flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-2xl font-bold text-indigo-700 disabled:opacity-40"
+        :disabled="disabled || submitted || value >= max"
+        aria-label="Increase by 1"
+        @click="adjust(1)"
+      >
+        +
+      </button>
+    </div>
     <div class="flex w-full justify-between text-sm font-semibold text-slate-500">
       <span>{{ min }}</span>
       <span>{{ max }}</span>
