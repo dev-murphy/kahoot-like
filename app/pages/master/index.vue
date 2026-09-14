@@ -1,15 +1,28 @@
 <script setup lang="ts">
+import { downloadJson } from '~/utils/downloadJson'
+
 definePageMeta({ middleware: 'master-auth' })
 
 const store = useMasterStore()
 const router = useRouter()
 const deleting = ref<string | null>(null)
+const exporting = ref(false)
 
 await store.fetchGames()
 
 async function logout() {
   await store.logout()
   router.push('/master/login')
+}
+
+async function exportAllData() {
+  exporting.value = true
+  try {
+    const data = await $fetch('/api/export')
+    downloadJson(data, `quizrush-export-${new Date().toISOString().slice(0, 10)}.json`)
+  } finally {
+    exporting.value = false
+  }
 }
 
 async function launchAndGo(id: string) {
@@ -50,46 +63,73 @@ function continueLink(game: { id: string; status: string }) {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 pb-16">
-    <header class="border-b border-slate-200 bg-white">
+  <div class="min-h-screen bg-slate-50 pb-16 dark:bg-slate-900">
+    <header class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        <h1 class="font-display text-xl font-extrabold text-slate-800">Game Master</h1>
-        <button type="button" class="text-sm font-semibold text-slate-500 hover:text-slate-800" @click="logout">Logout</button>
+        <h1 class="font-display text-xl font-extrabold text-slate-800 dark:text-slate-100">Game Master</h1>
+        <div class="flex items-center gap-3">
+          <ThemeToggle />
+          <button
+            type="button"
+            class="text-sm font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
+            @click="logout"
+          >
+            Logout
+          </button>
+        </div>
       </div>
     </header>
 
     <main class="mx-auto max-w-5xl px-6 py-8">
-      <div class="mb-6 flex items-center justify-between">
-        <h2 class="font-display text-2xl font-bold text-slate-800">Your Games</h2>
-        <NuxtLink
-          to="/master/games/new"
-          class="btn-touch rounded-2xl bg-indigo-600 px-5 py-3 font-display font-bold text-white shadow-lg"
-        >
-          + Create Game
-        </NuxtLink>
+      <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h2 class="font-display text-2xl font-bold text-slate-800 dark:text-slate-100">Your Games</h2>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            class="btn-touch flex items-center gap-1.5 rounded-2xl bg-slate-100 px-4 py-3 font-display font-bold text-slate-700 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-200"
+            :disabled="exporting"
+            @click="exportAllData"
+          >
+            <Icon name="tabler:download" class="h-5 w-5" />
+            {{ exporting ? 'Exporting…' : 'Export All Data' }}
+          </button>
+          <NuxtLink
+            to="/master/games/new"
+            class="btn-touch flex items-center gap-1.5 rounded-2xl bg-indigo-600 px-5 py-3 font-display font-bold text-white shadow-lg"
+          >
+            <Icon name="tabler:plus" class="h-5 w-5" />
+            Create Game
+          </NuxtLink>
+        </div>
       </div>
 
-      <div v-if="store.games.length === 0" class="card p-10 text-center text-slate-400">
+      <div v-if="store.games.length === 0" class="card p-10 text-center text-slate-400 dark:text-slate-500">
         No games yet. Create one to get started.
       </div>
 
       <div class="grid gap-4 sm:grid-cols-2">
         <div v-for="game in store.games" :key="game.id" class="card flex flex-col gap-3 p-5">
           <div class="flex items-start justify-between gap-2">
-            <h3 class="font-display text-lg font-bold text-slate-800">{{ game.title }}</h3>
+            <h3 class="font-display text-lg font-bold text-slate-800 dark:text-slate-100">{{ game.title }}</h3>
             <span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-bold" :class="statusBadge(game.status)">
               {{ game.status.replace('_', ' ') }}
             </span>
           </div>
-          <p class="text-sm text-slate-400">
+          <p class="text-sm text-slate-400 dark:text-slate-500">
             {{ game.questionCount }} question{{ game.questionCount === 1 ? '' : 's' }} · created
             {{ new Date(game.createdAt).toLocaleDateString() }}
           </p>
           <div class="mt-auto flex flex-wrap gap-2 pt-2">
-            <NuxtLink :to="`/master/games/${game.id}`" class="btn-touch rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700">
+            <NuxtLink
+              :to="`/master/games/${game.id}`"
+              class="btn-touch rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-100"
+            >
               Edit
             </NuxtLink>
-            <NuxtLink :to="continueLink(game)" class="btn-touch rounded-xl bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700">
+            <NuxtLink
+              :to="continueLink(game)"
+              class="btn-touch rounded-xl bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300"
+            >
               {{ game.status === 'DRAFT' ? 'Continue' : 'Open' }}
             </NuxtLink>
             <button
@@ -103,7 +143,7 @@ function continueLink(game: { id: string; status: string }) {
             </button>
             <button
               type="button"
-              class="btn-touch ml-auto rounded-xl px-3 py-2 text-sm font-bold text-red-500 hover:bg-red-50 disabled:opacity-40"
+              class="btn-touch ml-auto rounded-xl px-3 py-2 text-sm font-bold text-red-500 hover:bg-red-50 disabled:opacity-40 dark:hover:bg-red-500/10"
               :disabled="deleting === game.id"
               @click="removeGame(game.id)"
             >

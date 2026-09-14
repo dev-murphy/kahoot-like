@@ -24,6 +24,7 @@ export default defineEventHandler((event) => {
     gameId: game.id,
     title: game.title,
     status: game.status,
+    mode: game.mode,
     joinable: game.status === 'LOBBY',
     teams: teams.map((t) => ({ id: t.id, name: t.name, color: t.color, slug: slugify(t.name), memberCount: teamCounts.get(t.id) ?? 0 })),
     alreadyJoined

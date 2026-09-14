@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type {
+  CompleteTextConfig,
+  FillBlankConfig,
   PinAnswerConfig,
   PuzzleConfig,
   Question,
@@ -11,6 +13,8 @@ import type {
   TypeAnswerConfig
 } from '#shared/types'
 import { QUIZ_ANSWER_COLORS } from '#shared/types'
+import { BLANK_TOKEN, countBlanks } from '#shared/utils/fillBlank'
+import { tokenizeAnswer } from '#shared/utils/tokenize'
 
 const props = defineProps<{ gameId: string; question?: Question | null }>()
 const emit = defineEmits<{ saved: []; cancel: [] }>()
@@ -48,6 +52,64 @@ const radius = ref(type.value === 'pin_answer' ? (props.question!.config as PinA
 const pinContainer = ref<HTMLElement | null>(null)
 
 const puzzleItems = ref<string[]>(type.value === 'puzzle' ? [...(props.question!.config as PuzzleConfig).items] : ['', '', ''])
+
+const fillBlankTemplate = ref(type.value === 'fill_blank' ? (props.question!.config as FillBlankConfig).template : '')
+const fillBlankAnswers = ref<string[]>(type.value === 'fill_blank' ? [...(props.question!.config as FillBlankConfig).answers] : [])
+const fillBlankWordBank = ref<string[]>(type.value === 'fill_blank' ? [...(props.question!.config as FillBlankConfig).wordBank] : [])
+
+const completeTextAnswer = ref(type.value === 'complete_text' ? (props.question!.config as CompleteTextConfig).answer : '')
+const completeTextWordBank = ref<string[]>(
+  type.value === 'complete_text' ? [...(props.question!.config as CompleteTextConfig).wordBank] : []
+)
+
+const fillBlankCount = computed(() => countBlanks(fillBlankTemplate.value))
+watch(fillBlankCount, (n) => {
+  const answers = fillBlankAnswers.value
+  if (answers.length < n) fillBlankAnswers.value = [...answers, ...Array(n - answers.length).fill('')]
+  else if (answers.length > n) fillBlankAnswers.value = answers.slice(0, n)
+})
+
+function insertBlank() {
+  fillBlankTemplate.value += (fillBlankTemplate.value && !fillBlankTemplate.value.endsWith(' ') ? ' ' : '') + BLANK_TOKEN
+}
+
+function addFillBlankWord() {
+  fillBlankWordBank.value.push('')
+}
+function removeFillBlankWord(idx: number) {
+  fillBlankWordBank.value.splice(idx, 1)
+}
+function syncFillBlankWordBank() {
+  const available = new Map<string, number>()
+  for (const w of fillBlankWordBank.value) {
+    const key = w.trim().toLowerCase()
+    if (!key) continue
+    available.set(key, (available.get(key) ?? 0) + 1)
+  }
+  const missing: string[] = []
+  for (const a of fillBlankAnswers.value) {
+    const trimmed = a.trim()
+    if (!trimmed) continue
+    const key = trimmed.toLowerCase()
+    const remaining = available.get(key) ?? 0
+    if (remaining > 0) {
+      available.set(key, remaining - 1)
+    } else {
+      missing.push(trimmed)
+    }
+  }
+  fillBlankWordBank.value = [...fillBlankWordBank.value, ...missing]
+}
+
+function addCompleteTextWord() {
+  completeTextWordBank.value.push('')
+}
+function removeCompleteTextWord(idx: number) {
+  completeTextWordBank.value.splice(idx, 1)
+}
+function autoFillCompleteTextWordBank() {
+  completeTextWordBank.value = tokenizeAnswer(completeTextAnswer.value)
+}
 
 function pickType(t: QuestionType) {
   type.value = t
@@ -120,6 +182,17 @@ function buildConfig(): QuestionConfig | null {
       } satisfies PinAnswerConfig
     case 'puzzle':
       return { items: puzzleItems.value.map((i) => i.trim()) } satisfies PuzzleConfig
+    case 'fill_blank':
+      return {
+        template: fillBlankTemplate.value.trim(),
+        answers: fillBlankAnswers.value.map((a) => a.trim()),
+        wordBank: fillBlankWordBank.value.map((w) => w.trim()).filter(Boolean)
+      } satisfies FillBlankConfig
+    case 'complete_text':
+      return {
+        answer: completeTextAnswer.value.trim(),
+        wordBank: completeTextWordBank.value.map((w) => w.trim()).filter(Boolean)
+      } satisfies CompleteTextConfig
     default:
       return null
   }
@@ -154,7 +227,7 @@ async function save() {
     <div v-if="step === 1">
       <QuestionTypeSelector v-model="type" />
       <div class="mt-6 flex justify-end gap-3">
-        <button type="button" class="btn-touch rounded-xl px-4 py-2 font-semibold text-slate-500" @click="emit('cancel')">
+        <button type="button" class="btn-touch rounded-xl px-4 py-2 font-semibold text-slate-500 dark:text-slate-400" @click="emit('cancel')">
           Cancel
         </button>
         <button
@@ -170,11 +243,11 @@ async function save() {
 
     <div v-else class="flex flex-col gap-5">
       <div class="flex items-center justify-between">
-        <h3 class="font-display text-xl font-bold text-slate-800">Configure question</h3>
+        <h3 class="font-display text-xl font-bold text-slate-800 dark:text-slate-100">Configure question</h3>
         <button
           v-if="!props.question"
           type="button"
-          class="text-sm font-semibold text-indigo-600 hover:underline"
+          class="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
           @click="step = 1"
         >
           Change type
@@ -182,29 +255,29 @@ async function save() {
       </div>
 
       <label class="flex flex-col gap-1">
-        <span class="text-sm font-semibold text-slate-600">Question text</span>
+        <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Question text</span>
         <textarea
           v-model="text"
           rows="2"
-          class="rounded-xl border border-slate-200 px-4 py-3 text-lg focus:border-indigo-500 focus:outline-none"
+          class="rounded-xl border border-slate-200 px-4 py-3 text-lg focus:border-indigo-500 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-white"
           placeholder="What is...?"
         />
       </label>
 
       <div class="grid grid-cols-2 gap-4">
         <label class="flex flex-col gap-1">
-          <span class="text-sm font-semibold text-slate-600">Time limit (sec)</span>
-          <input v-model.number="timeLimit" type="number" min="5" max="300" class="rounded-xl border border-slate-200 px-4 py-2" />
+          <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Time limit (sec)</span>
+          <input v-model.number="timeLimit" type="number" min="5" max="300" class="rounded-xl border border-slate-200 px-4 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
         </label>
         <label class="flex flex-col gap-1">
-          <span class="text-sm font-semibold text-slate-600">Points</span>
-          <input v-model.number="points" type="number" min="0" max="5000" step="50" class="rounded-xl border border-slate-200 px-4 py-2" />
+          <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Points</span>
+          <input v-model.number="points" type="number" min="0" max="5000" step="50" class="rounded-xl border border-slate-200 px-4 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
         </label>
       </div>
 
       <!-- Quiz -->
       <div v-if="type === 'quiz'" class="flex flex-col gap-2">
-        <span class="text-sm font-semibold text-slate-600">Answer choices (select the correct one)</span>
+        <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Answer choices (select the correct one)</span>
         <div v-for="(c, idx) in choices" :key="idx" class="flex items-center gap-2">
           <input
             type="radio"
@@ -220,19 +293,19 @@ async function save() {
             :style="{ borderColor: QUIZ_ANSWER_COLORS[idx] }"
             :placeholder="`Choice ${idx + 1}`"
           />
-          <button v-if="choices.length > 2" type="button" class="text-slate-400 hover:text-red-500" @click="removeChoice(idx)">✕</button>
+          <button v-if="choices.length > 2" type="button" class="text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400" @click="removeChoice(idx)"><Icon name="tabler:x" class="h-4 w-4" /></button>
         </div>
-        <button v-if="choices.length < 4" type="button" class="self-start text-sm font-semibold text-indigo-600" @click="addChoice">
+        <button v-if="choices.length < 4" type="button" class="self-start text-sm font-semibold text-indigo-600 dark:text-indigo-400" @click="addChoice">
           + Add choice
         </button>
       </div>
 
       <!-- True/False -->
       <div v-else-if="type === 'true_false'" class="flex gap-4">
-        <label class="flex items-center gap-2 font-semibold">
+        <label class="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-100">
           <input v-model="tfAnswer" type="radio" :value="true" /> True
         </label>
-        <label class="flex items-center gap-2 font-semibold">
+        <label class="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-100">
           <input v-model="tfAnswer" type="radio" :value="false" /> False
         </label>
       </div>
@@ -240,40 +313,40 @@ async function save() {
       <!-- Type answer -->
       <div v-else-if="type === 'type_answer'" class="flex flex-col gap-3">
         <label class="flex flex-col gap-1">
-          <span class="text-sm font-semibold text-slate-600">Correct answer</span>
-          <input v-model="correctAnswer" type="text" class="rounded-xl border border-slate-200 px-4 py-2" />
+          <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Correct answer</span>
+          <input v-model="correctAnswer" type="text" class="rounded-xl border border-slate-200 px-4 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
         </label>
         <label class="flex flex-col gap-1">
-          <span class="text-sm font-semibold text-slate-600">Other acceptable answers (comma separated, optional)</span>
-          <input v-model="acceptableAnswers" type="text" class="rounded-xl border border-slate-200 px-4 py-2" placeholder="e.g. NYC, New York City" />
+          <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Other acceptable answers (comma separated, optional)</span>
+          <input v-model="acceptableAnswers" type="text" class="rounded-xl border border-slate-200 px-4 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white" placeholder="e.g. NYC, New York City" />
         </label>
       </div>
 
       <!-- Slider -->
       <div v-else-if="type === 'slider'" class="grid grid-cols-2 gap-4">
         <label class="flex flex-col gap-1">
-          <span class="text-sm font-semibold text-slate-600">Minimum</span>
-          <input v-model.number="sliderMin" type="number" class="rounded-xl border border-slate-200 px-4 py-2" />
+          <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Minimum</span>
+          <input v-model.number="sliderMin" type="number" class="rounded-xl border border-slate-200 px-4 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
         </label>
         <label class="flex flex-col gap-1">
-          <span class="text-sm font-semibold text-slate-600">Maximum</span>
-          <input v-model.number="sliderMax" type="number" class="rounded-xl border border-slate-200 px-4 py-2" />
+          <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Maximum</span>
+          <input v-model.number="sliderMax" type="number" class="rounded-xl border border-slate-200 px-4 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
         </label>
         <label class="flex flex-col gap-1">
-          <span class="text-sm font-semibold text-slate-600">Correct value</span>
-          <input v-model.number="sliderCorrect" type="number" class="rounded-xl border border-slate-200 px-4 py-2" />
+          <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Correct value</span>
+          <input v-model.number="sliderCorrect" type="number" class="rounded-xl border border-slate-200 px-4 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
         </label>
         <label class="flex flex-col gap-1">
-          <span class="text-sm font-semibold text-slate-600">Tolerance (±)</span>
-          <input v-model.number="sliderTolerance" type="number" min="0.01" class="rounded-xl border border-slate-200 px-4 py-2" />
+          <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Tolerance (±)</span>
+          <input v-model.number="sliderTolerance" type="number" min="0.01" class="rounded-xl border border-slate-200 px-4 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
         </label>
       </div>
 
       <!-- Pin answer -->
       <div v-else-if="type === 'pin_answer'" class="flex flex-col gap-3">
         <label class="flex flex-col gap-1">
-          <span class="text-sm font-semibold text-slate-600">Background image URL</span>
-          <input v-model="imageUrl" type="text" class="rounded-xl border border-slate-200 px-4 py-2" placeholder="https://..." />
+          <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Background image URL</span>
+          <input v-model="imageUrl" type="text" class="rounded-xl border border-slate-200 px-4 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white" placeholder="https://..." />
         </label>
         <div v-if="imageUrl" ref="pinContainer" class="relative w-full max-w-md cursor-crosshair overflow-hidden rounded-xl ring-1 ring-slate-200" @click="setPin">
           <img :src="imageUrl" class="pointer-events-none block w-full" draggable="false" />
@@ -292,30 +365,99 @@ async function save() {
             :style="{ left: correctX * 100 + '%', top: correctY * 100 + '%' }"
           />
         </div>
-        <p class="text-xs text-slate-400">Click the image to set the correct location.</p>
+        <p class="text-xs text-slate-400 dark:text-slate-500">Click the image to set the correct location.</p>
         <label class="flex flex-col gap-1">
-          <span class="text-sm font-semibold text-slate-600">Tolerance radius: {{ Math.round(radius * 100) }}%</span>
+          <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Tolerance radius: {{ Math.round(radius * 100) }}%</span>
           <input v-model.number="radius" type="range" min="0.02" max="0.5" step="0.01" />
         </label>
       </div>
 
       <!-- Puzzle -->
       <div v-else-if="type === 'puzzle'" class="flex flex-col gap-2">
-        <span class="text-sm font-semibold text-slate-600">Items in correct order</span>
+        <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Items in correct order</span>
         <div v-for="(item, idx) in puzzleItems" :key="idx" class="flex items-center gap-2">
-          <span class="w-6 text-center font-bold text-slate-400">{{ idx + 1 }}</span>
-          <input v-model="puzzleItems[idx]" type="text" class="flex-1 rounded-xl border border-slate-200 px-3 py-2" />
-          <button type="button" class="text-slate-400 disabled:opacity-30" :disabled="idx === 0" @click="movePuzzleItem(idx, -1)">▲</button>
-          <button type="button" class="text-slate-400 disabled:opacity-30" :disabled="idx === puzzleItems.length - 1" @click="movePuzzleItem(idx, 1)">▼</button>
-          <button v-if="puzzleItems.length > 2" type="button" class="text-slate-400 hover:text-red-500" @click="removePuzzleItem(idx)">✕</button>
+          <span class="w-6 text-center font-bold text-slate-400 dark:text-slate-500">{{ idx + 1 }}</span>
+          <input v-model="puzzleItems[idx]" type="text" class="flex-1 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
+          <button type="button" class="text-slate-400 disabled:opacity-30 dark:text-slate-500" :disabled="idx === 0" @click="movePuzzleItem(idx, -1)">
+            <Icon name="tabler:chevron-up" class="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            class="text-slate-400 disabled:opacity-30 dark:text-slate-500"
+            :disabled="idx === puzzleItems.length - 1"
+            @click="movePuzzleItem(idx, 1)"
+          >
+            <Icon name="tabler:chevron-down" class="h-4 w-4" />
+          </button>
+          <button v-if="puzzleItems.length > 2" type="button" class="text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400" @click="removePuzzleItem(idx)"><Icon name="tabler:x" class="h-4 w-4" /></button>
         </div>
-        <button type="button" class="self-start text-sm font-semibold text-indigo-600" @click="addPuzzleItem">+ Add item</button>
+        <button type="button" class="self-start text-sm font-semibold text-indigo-600 dark:text-indigo-400" @click="addPuzzleItem">+ Add item</button>
       </div>
 
-      <p v-if="error" class="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{{ error }}</p>
+      <!-- Fill in the blank -->
+      <div v-else-if="type === 'fill_blank'" class="flex flex-col gap-4">
+        <label class="flex flex-col gap-1">
+          <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Verse / sentence with blanks</span>
+          <textarea
+            v-model="fillBlankTemplate"
+            rows="3"
+            class="rounded-xl border border-slate-200 px-4 py-3 focus:border-indigo-500 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+            placeholder="The Lord is my {blank}; I shall not {blank}."
+          />
+          <button type="button" class="self-start text-xs font-semibold text-indigo-600 dark:text-indigo-400" @click="insertBlank">+ Insert blank</button>
+        </label>
+
+        <div class="flex flex-col gap-2">
+          <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Answers ({{ fillBlankCount }} blank{{ fillBlankCount === 1 ? '' : 's' }} found)</span>
+          <div v-for="(a, idx) in fillBlankAnswers" :key="idx" class="flex items-center gap-2">
+            <span class="w-6 text-center font-bold text-slate-400 dark:text-slate-500">{{ idx + 1 }}</span>
+            <input v-model="fillBlankAnswers[idx]" type="text" class="flex-1 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white" :placeholder="`Blank ${idx + 1} answer`" />
+          </div>
+          <p v-if="fillBlankCount === 0" class="text-xs text-slate-400 dark:text-slate-500">Add a {blank} to the text above to create an answer slot.</p>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Word bank (answers + distractors)</span>
+            <button type="button" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400" @click="syncFillBlankWordBank">+ Add answer words</button>
+          </div>
+          <div v-for="(w, idx) in fillBlankWordBank" :key="idx" class="flex items-center gap-2">
+            <input v-model="fillBlankWordBank[idx]" type="text" class="flex-1 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white" placeholder="Word" />
+            <button type="button" class="text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400" @click="removeFillBlankWord(idx)"><Icon name="tabler:x" class="h-4 w-4" /></button>
+          </div>
+          <button type="button" class="self-start text-sm font-semibold text-indigo-600 dark:text-indigo-400" @click="addFillBlankWord">+ Add word</button>
+        </div>
+      </div>
+
+      <!-- Complete the text -->
+      <div v-else-if="type === 'complete_text'" class="flex flex-col gap-4">
+        <label class="flex flex-col gap-1">
+          <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Full verse / sentence</span>
+          <textarea
+            v-model="completeTextAnswer"
+            rows="3"
+            class="rounded-xl border border-slate-200 px-4 py-3 focus:border-indigo-500 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+            placeholder="The Lord is my shepherd; I shall not want."
+          />
+        </label>
+
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Word bank (words + distractors)</span>
+            <button type="button" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400" @click="autoFillCompleteTextWordBank">Auto-fill from sentence</button>
+          </div>
+          <div v-for="(w, idx) in completeTextWordBank" :key="idx" class="flex items-center gap-2">
+            <input v-model="completeTextWordBank[idx]" type="text" class="flex-1 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white" placeholder="Word" />
+            <button type="button" class="text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400" @click="removeCompleteTextWord(idx)"><Icon name="tabler:x" class="h-4 w-4" /></button>
+          </div>
+          <button type="button" class="self-start text-sm font-semibold text-indigo-600 dark:text-indigo-400" @click="addCompleteTextWord">+ Add word</button>
+        </div>
+      </div>
+
+      <p v-if="error" class="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600 dark:bg-red-500/10 dark:text-red-400">{{ error }}</p>
 
       <div class="mt-2 flex justify-end gap-3">
-        <button type="button" class="btn-touch rounded-xl px-4 py-2 font-semibold text-slate-500" @click="emit('cancel')">Cancel</button>
+        <button type="button" class="btn-touch rounded-xl px-4 py-2 font-semibold text-slate-500 dark:text-slate-400" @click="emit('cancel')">Cancel</button>
         <button type="button" class="btn-touch rounded-xl bg-indigo-600 px-6 py-2 font-bold text-white disabled:opacity-50" :disabled="saving || !text.trim()" @click="save">
           {{ saving ? 'Saving…' : 'Save question' }}
         </button>

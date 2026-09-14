@@ -1,4 +1,6 @@
 import type {
+  CompleteTextConfig,
+  FillBlankConfig,
   PinAnswerConfig,
   PublicQuestion,
   PuzzleConfig,
@@ -6,6 +8,7 @@ import type {
   QuizConfig,
   SliderConfig
 } from '#shared/types'
+import { tokenizeAnswer } from '#shared/utils/tokenize'
 
 function shuffle<T>(arr: T[]): T[] {
   const copy = [...arr]
@@ -48,6 +51,17 @@ export function sanitizeQuestion(question: Question): PublicQuestion {
     case 'puzzle': {
       const config = question.config as PuzzleConfig
       return { ...base, config: { items: shuffle(config.items) } }
+    }
+    case 'fill_blank': {
+      const config = question.config as FillBlankConfig
+      return {
+        ...base,
+        config: { template: config.template, blankCount: config.answers.length, wordBank: shuffle(config.wordBank) }
+      }
+    }
+    case 'complete_text': {
+      const config = question.config as CompleteTextConfig
+      return { ...base, config: { wordCount: tokenizeAnswer(config.answer).length, wordBank: shuffle(config.wordBank) } }
     }
     default:
       return { ...base, config: {} }

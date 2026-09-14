@@ -3,6 +3,7 @@ interface JoinInfo {
   gameId: string
   title: string
   status: string
+  mode: 'TEAM' | 'INDIVIDUAL'
   joinable: boolean
   teams: { id: string; name: string; color: string; slug: string; memberCount: number }[]
   alreadyJoined: { id: string; name: string; teamId: string | null } | null
@@ -80,7 +81,7 @@ async function join() {
         />
       </label>
 
-      <label v-if="info.teams.length > 0" class="flex flex-col gap-1">
+      <label v-if="info.mode !== 'INDIVIDUAL' && info.teams.length > 0" class="flex flex-col gap-1">
         <span class="text-sm font-bold uppercase tracking-wide text-slate-500">Team (optional)</span>
         <select v-model="teamId" class="w-full rounded-2xl border-2 border-indigo-100 px-4 py-3 text-center font-semibold text-slate-800">
           <option value="">Let the Game Master assign me</option>

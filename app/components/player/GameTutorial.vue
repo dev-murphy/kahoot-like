@@ -33,6 +33,16 @@ const steps = [
     title: 'Put in Order',
     demo: 'puzzle',
     description: 'Press and drag any card up or down to put the list in the right order, then tap Submit.'
+  },
+  {
+    title: 'Fill in the Blank',
+    demo: 'fill_blank',
+    description: 'Tap words from the word bank to fill in each blank. Tap a filled blank to take the word back, then tap Check Answer.'
+  },
+  {
+    title: 'Complete the Text',
+    demo: 'complete_text',
+    description: 'Tap words from the word bank in the right order to build the sentence, then tap Check Answer.'
   }
 ] as const
 
@@ -100,6 +110,31 @@ function back() {
               <span class="flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">{{ n }}</span>
               <span class="h-1.5 flex-1 rounded-full bg-slate-200" />
               <span class="text-slate-300">⠿</span>
+            </div>
+          </div>
+
+          <!-- Fill in the blank demo -->
+          <div v-else-if="step.demo === 'fill_blank'" class="flex w-full flex-col items-center gap-2">
+            <div class="flex flex-wrap items-center justify-center gap-1 text-xs font-semibold text-slate-600">
+              <span>The Lord is my</span>
+              <span class="rounded-lg border-2 border-dashed border-indigo-400 bg-indigo-50 px-2 py-1 text-indigo-700">shepherd</span>
+            </div>
+            <div class="flex gap-2">
+              <span class="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-900/5">want</span>
+              <span class="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-900/5">fear</span>
+            </div>
+          </div>
+
+          <!-- Complete text demo -->
+          <div v-else-if="step.demo === 'complete_text'" class="flex w-full flex-col items-center gap-2">
+            <div class="flex flex-wrap items-center justify-center gap-1 text-xs font-semibold text-white">
+              <span class="rounded-lg bg-indigo-600 px-2 py-1">The</span>
+              <span class="rounded-lg bg-indigo-600 px-2 py-1">Lord</span>
+              <span class="rounded-lg bg-indigo-600 px-2 py-1">is</span>
+            </div>
+            <div class="flex gap-2">
+              <span class="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-900/5">my</span>
+              <span class="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-900/5">shepherd</span>
             </div>
           </div>
         </div>

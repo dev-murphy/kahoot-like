@@ -22,6 +22,10 @@ body {
   overscroll-behavior: none;
 }
 
+html.dark body {
+  background-color: #0f172a;
+}
+
 h1,
 h2,
 h3,
@@ -35,7 +39,7 @@ h3,
   }
 
   .card {
-    @apply rounded-3xl bg-white shadow-lg shadow-slate-900/5 ring-1 ring-slate-900/5;
+    @apply rounded-3xl bg-white shadow-lg shadow-slate-900/5 ring-1 ring-slate-900/5 dark:bg-slate-800 dark:shadow-black/20 dark:ring-white/10;
   }
 
   .app-bg {

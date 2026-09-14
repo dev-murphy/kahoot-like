@@ -3,6 +3,7 @@ interface JoinInfo {
   gameId: string
   title: string
   status: string
+  mode: 'TEAM' | 'INDIVIDUAL'
   joinable: boolean
   teams: { id: string; name: string; color: string; slug: string; memberCount: number }[]
   alreadyJoined: { id: string; name: string; teamId: string | null } | null
@@ -29,6 +30,9 @@ const team = computed(() => info.value?.teams.find((t) => t.slug === teamSlug) ?
 
 if (info.value?.alreadyJoined) {
   await navigateTo(`/game/${pin}`)
+} else if (info.value?.mode === 'INDIVIDUAL') {
+  // Individual-mode games auto-assign a solo team per player — team join links don't apply.
+  await navigateTo(`/join/${pin}`)
 }
 
 async function join() {

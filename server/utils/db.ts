@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS games (
   title TEXT NOT NULL,
   pin TEXT UNIQUE,
   status TEXT NOT NULL DEFAULT 'DRAFT',
+  mode TEXT NOT NULL DEFAULT 'TEAM',
   current_question_index INTEGER NOT NULL DEFAULT 0,
   result_delay_seconds INTEGER NOT NULL DEFAULT 6,
   paused INTEGER NOT NULL DEFAULT 0,
@@ -73,5 +74,11 @@ CREATE INDEX IF NOT EXISTS idx_teams_game ON teams(game_id);
 CREATE INDEX IF NOT EXISTS idx_players_game ON players(game_id);
 CREATE INDEX IF NOT EXISTS idx_answers_question ON answers(question_id);
 `)
+
+// Additive migration for databases created before `mode` existed on `games`.
+const gameColumns = db.prepare('PRAGMA table_info(games)').all() as { name: string }[]
+if (!gameColumns.some((c) => c.name === 'mode')) {
+  db.exec("ALTER TABLE games ADD COLUMN mode TEXT NOT NULL DEFAULT 'TEAM'")
+}
 
 export default db

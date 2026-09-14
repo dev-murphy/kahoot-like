@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import type { Game, Player, PublicQuestion, Question, Team } from '#shared/types'
 import { sanitizeQuestionClient } from '~/utils/previewSanitize'
+import { downloadJson } from '~/utils/downloadJson'
+import { QUESTION_TYPE_MAP } from '~/utils/questionTypeMeta'
 import QuizQuestion from '~/components/questions/QuizQuestion.vue'
 import TrueFalseQuestion from '~/components/questions/TrueFalseQuestion.vue'
 import TypeAnswerQuestion from '~/components/questions/TypeAnswerQuestion.vue'
 import SliderQuestion from '~/components/questions/SliderQuestion.vue'
 import PinAnswerQuestion from '~/components/questions/PinAnswerQuestion.vue'
 import PuzzleQuestion from '~/components/questions/PuzzleQuestion.vue'
+import FillBlankQuestion from '~/components/questions/FillBlankQuestion.vue'
+import CompleteTextQuestion from '~/components/questions/CompleteTextQuestion.vue'
 
 definePageMeta({ middleware: 'master-auth' })
 
@@ -16,7 +20,9 @@ const previewComponents: Record<string, unknown> = {
   type_answer: TypeAnswerQuestion,
   slider: SliderQuestion,
   pin_answer: PinAnswerQuestion,
-  puzzle: PuzzleQuestion
+  puzzle: PuzzleQuestion,
+  fill_blank: FillBlankQuestion,
+  complete_text: CompleteTextQuestion
 }
 
 const route = useRoute()
@@ -70,14 +76,16 @@ const importError = ref('')
 const selectMode = ref(false)
 const selectedIds = ref<Set<string>>(new Set())
 const bulkDeleting = ref(false)
+const exporting = ref(false)
 
-const TYPE_LABELS: Record<string, { label: string; icon: string }> = {
-  quiz: { label: 'Quiz', icon: '🟥🟦' },
-  true_false: { label: 'True or False', icon: '✓✕' },
-  type_answer: { label: 'Type Answer', icon: '⌨️' },
-  slider: { label: 'Slider', icon: '🎚️' },
-  pin_answer: { label: 'Pin Answer', icon: '📍' },
-  puzzle: { label: 'Puzzle', icon: '🧩' }
+async function exportGameData() {
+  exporting.value = true
+  try {
+    const data = await authedFetch(`/api/games/${gameId}/export`)
+    downloadJson(data, `${game.value?.title ?? 'game'}-export.json`)
+  } finally {
+    exporting.value = false
+  }
 }
 
 function openAdd() {
@@ -166,16 +174,74 @@ async function bulkDelete() {
   }
 }
 
-async function moveQuestion(idx: number, dir: -1 | 1) {
-  const target = idx + dir
-  if (target < 0 || target >= questions.value.length) return
-  const copy = [...questions.value]
-  ;[copy[idx], copy[target]] = [copy[target]!, copy[idx]!]
-  questions.value = copy
-  await $fetch(`/api/games/${gameId}/questions/reorder`, {
-    method: 'POST',
-    body: { orderedIds: copy.map((q) => q.id) }
-  })
+const rowEls = ref<(HTMLElement | null)[]>([])
+const dragIndex = ref<number | null>(null)
+const dragOffsetY = ref(0)
+let dragStartY = 0
+let dragItemHeight = 0
+let activePointerId: number | null = null
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function startDrag(e: PointerEvent, idx: number) {
+  if (selectMode.value) return
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  const el = rowEls.value[idx]
+  if (!el) return
+
+  e.preventDefault()
+  dragIndex.value = idx
+  dragOffsetY.value = 0
+  dragStartY = e.clientY
+  dragItemHeight = el.getBoundingClientRect().height
+  activePointerId = e.pointerId
+
+  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  window.addEventListener('pointermove', onDragMove)
+  window.addEventListener('pointerup', endDrag)
+  window.addEventListener('pointercancel', endDrag)
+}
+
+function onDragMove(e: PointerEvent) {
+  if (dragIndex.value === null || e.pointerId !== activePointerId) return
+
+  const delta = e.clientY - dragStartY
+  const steps = dragItemHeight > 0 ? Math.round(delta / dragItemHeight) : 0
+
+  if (steps !== 0) {
+    const from = dragIndex.value
+    const to = clamp(from + steps, 0, questions.value.length - 1)
+    if (to !== from) {
+      const copy = [...questions.value]
+      const [moved] = copy.splice(from, 1)
+      copy.splice(to, 0, moved!)
+      questions.value = copy
+      dragIndex.value = to
+      dragStartY += (to - from) * dragItemHeight
+    }
+  }
+
+  dragOffsetY.value = e.clientY - dragStartY
+}
+
+async function endDrag(e: PointerEvent) {
+  if (e.pointerId !== activePointerId) return
+  const moved = dragIndex.value !== null
+  dragIndex.value = null
+  dragOffsetY.value = 0
+  activePointerId = null
+  window.removeEventListener('pointermove', onDragMove)
+  window.removeEventListener('pointerup', endDrag)
+  window.removeEventListener('pointercancel', endDrag)
+
+  if (moved) {
+    await $fetch(`/api/games/${gameId}/questions/reorder`, {
+      method: 'POST',
+      body: { orderedIds: questions.value.map((q) => q.id) }
+    })
+  }
 }
 
 const launching = ref(false)
@@ -208,46 +274,70 @@ const previewPublic = computed<PublicQuestion | null>(() =>
 
 <template>
   <div v-if="loadError" class="flex min-h-screen items-center justify-center">
-    <p class="text-slate-500">{{ loadError }}</p>
+    <p class="text-slate-500 dark:text-slate-400">{{ loadError }}</p>
   </div>
-  <div v-else-if="game" class="min-h-screen bg-slate-50 pb-24">
-    <header class="border-b border-slate-200 bg-white">
+  <div v-else-if="game" class="min-h-screen bg-slate-50 pb-24 dark:bg-slate-900">
+    <header class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <div class="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
-        <NuxtLink to="/master" class="text-sm font-semibold text-slate-500 hover:text-slate-800">← Dashboard</NuxtLink>
-        <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">{{ game.status }}</span>
+        <NuxtLink
+          to="/master"
+          class="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
+        >
+          <Icon name="tabler:arrow-left" class="h-4 w-4" /> Dashboard
+        </NuxtLink>
+        <div class="flex items-center gap-3">
+          <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-300">{{ game.status }}</span>
+          <ThemeToggle />
+        </div>
       </div>
     </header>
 
     <main class="mx-auto max-w-3xl px-6 py-8">
       <label class="mb-8 block">
-        <span class="text-sm font-semibold text-slate-500">Game title</span>
+        <span class="text-sm font-semibold text-slate-500 dark:text-slate-400">Game title</span>
         <input
           v-model="titleDraft"
           type="text"
-          class="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-display text-2xl font-bold text-slate-800 focus:border-indigo-500 focus:outline-none"
+          class="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-display text-2xl font-bold text-slate-800 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
         />
       </label>
 
-      <section class="mb-10">
-        <h2 class="mb-3 font-display text-lg font-bold text-slate-800">Teams</h2>
+      <section v-if="game.mode !== 'INDIVIDUAL'" class="mb-10">
+        <h2 class="mb-3 font-display text-lg font-bold text-slate-800 dark:text-slate-100">Teams</h2>
         <TeamManager :game-id="gameId" :teams="teams" :players="players" :pin="game.pin" @changed="refresh" />
+      </section>
+      <section v-else class="mb-10">
+        <h2 class="mb-3 font-display text-lg font-bold text-slate-800 dark:text-slate-100">Mode</h2>
+        <p class="flex items-center gap-2 rounded-xl bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
+          <Icon name="tabler:user" class="h-5 w-5 shrink-0" /> Individual Mode — players compete on their own, no teams to manage.
+        </p>
       </section>
 
       <section>
         <div class="mb-3 flex items-center justify-between">
-          <h2 class="font-display text-lg font-bold text-slate-800">Questions ({{ questions.length }})</h2>
-          <button
-            v-if="questions.length > 0"
-            type="button"
-            class="text-xs font-bold text-indigo-500 hover:underline"
-            @click="toggleSelectMode"
-          >
-            {{ selectMode ? 'Cancel' : 'Select' }}
-          </button>
+          <h2 class="font-display text-lg font-bold text-slate-800 dark:text-slate-100">Questions ({{ questions.length }})</h2>
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              class="flex items-center gap-1 text-xs font-bold text-slate-500 hover:underline disabled:opacity-40 dark:text-slate-400"
+              :disabled="exporting || questions.length === 0"
+              @click="exportGameData"
+            >
+              <Icon name="tabler:download" class="h-3.5 w-3.5" /> {{ exporting ? 'Exporting…' : 'Export' }}
+            </button>
+            <button
+              v-if="questions.length > 0"
+              type="button"
+              class="text-xs font-bold text-indigo-500 hover:underline dark:text-indigo-400"
+              @click="toggleSelectMode"
+            >
+              {{ selectMode ? 'Cancel' : 'Select' }}
+            </button>
+          </div>
         </div>
 
-        <div v-if="selectMode" class="mb-3 flex items-center justify-between rounded-2xl bg-indigo-50 px-4 py-2">
-          <label class="flex items-center gap-2 text-sm font-semibold text-indigo-700">
+        <div v-if="selectMode" class="mb-3 flex items-center justify-between rounded-2xl bg-indigo-50 px-4 py-2 dark:bg-indigo-500/10">
+          <label class="flex items-center gap-2 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
             <input
               type="checkbox"
               :checked="selectedIds.size === questions.length && questions.length > 0"
@@ -266,7 +356,14 @@ const previewPublic = computed<PublicQuestion | null>(() =>
         </div>
 
         <div class="flex flex-col gap-3">
-          <div v-for="(q, idx) in questions" :key="q.id" class="card flex items-center gap-3 p-4">
+          <div
+            v-for="(q, idx) in questions"
+            :key="q.id"
+            :ref="(el) => (rowEls[idx] = el as HTMLElement)"
+            class="card flex items-center gap-3 p-4"
+            :class="dragIndex === idx ? 'relative z-10 shadow-xl ring-2 ring-indigo-400' : ''"
+            :style="dragIndex === idx ? { transform: `translateY(${dragOffsetY}px)`, transition: 'none' } : {}"
+          >
             <input
               v-if="selectMode"
               type="checkbox"
@@ -274,45 +371,62 @@ const previewPublic = computed<PublicQuestion | null>(() =>
               :checked="selectedIds.has(q.id)"
               @change="toggleSelected(q.id)"
             />
-            <div v-else class="flex flex-col gap-0.5 text-slate-300">
-              <button type="button" class="disabled:opacity-20" :disabled="idx === 0" @click="moveQuestion(idx, -1)">▲</button>
-              <button type="button" class="disabled:opacity-20" :disabled="idx === questions.length - 1" @click="moveQuestion(idx, 1)">▼</button>
-            </div>
-            <span class="text-2xl">{{ TYPE_LABELS[q.type]?.icon }}</span>
+            <button
+              v-else
+              type="button"
+              class="btn-touch shrink-0 touch-none select-none text-slate-300 dark:text-slate-600"
+              :class="dragIndex === idx ? 'cursor-grabbing text-indigo-500 dark:text-indigo-400' : 'cursor-grab'"
+              @pointerdown="startDrag($event, idx)"
+            >
+              <Icon name="tabler:grip-vertical" class="h-5 w-5" />
+            </button>
+            <img :src="QUESTION_TYPE_MAP[q.type]?.icon" :alt="QUESTION_TYPE_MAP[q.type]?.label" class="h-7 w-7 shrink-0 rounded-md" />
             <div class="min-w-0 flex-1">
-              <p class="truncate font-semibold text-slate-800">{{ idx + 1 }}. {{ q.text }}</p>
-              <p class="text-xs text-slate-400">{{ TYPE_LABELS[q.type]?.label }} · {{ q.timeLimit }}s · {{ q.points }} pts</p>
+              <p class="truncate font-semibold text-slate-800 dark:text-slate-100">{{ idx + 1 }}. {{ q.text }}</p>
+              <p class="text-xs text-slate-400 dark:text-slate-500">{{ QUESTION_TYPE_MAP[q.type]?.label }} · {{ q.timeLimit }}s · {{ q.points }} pts</p>
             </div>
             <div class="flex shrink-0 gap-2">
-              <button type="button" class="btn-touch rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600" @click="previewQuestion = q">
+              <button
+                type="button"
+                class="btn-touch rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                @click="previewQuestion = q"
+              >
                 Preview
               </button>
-              <button type="button" class="btn-touch rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600" @click="openEdit(q)">
+              <button
+                type="button"
+                class="btn-touch rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                @click="openEdit(q)"
+              >
                 Edit
               </button>
-              <button type="button" class="btn-touch rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-500" @click="deleteQuestion(q)">
+              <button
+                type="button"
+                class="btn-touch rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-500 dark:bg-red-500/10"
+                @click="deleteQuestion(q)"
+              >
                 Delete
               </button>
             </div>
           </div>
 
-          <div v-if="questions.length === 0" class="card p-8 text-center text-slate-400">No questions yet.</div>
+          <div v-if="questions.length === 0" class="card p-8 text-center text-slate-400 dark:text-slate-500">No questions yet.</div>
 
           <div class="flex gap-3">
             <button
               type="button"
-              class="btn-touch flex-1 rounded-2xl border-2 border-dashed border-indigo-200 py-5 font-display font-bold text-indigo-500 hover:bg-indigo-50"
+              class="btn-touch flex flex-1 items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-indigo-200 py-5 font-display font-bold text-indigo-500 hover:bg-indigo-50 dark:border-indigo-500/30 dark:text-indigo-400 dark:hover:bg-indigo-500/10"
               @click="openAdd"
             >
-              + Add Question
+              <Icon name="tabler:plus" class="h-5 w-5" /> Add Question
             </button>
             <button
               type="button"
-              class="btn-touch flex-1 rounded-2xl border-2 border-dashed border-slate-200 py-5 font-display font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+              class="btn-touch flex flex-1 items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-slate-200 py-5 font-display font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
               :disabled="importing"
               @click="openImport"
             >
-              {{ importing ? 'Uploading…' : '⬆ Upload JSON' }}
+              <Icon name="tabler:upload" class="h-5 w-5" /> {{ importing ? 'Uploading…' : 'Upload JSON' }}
             </button>
             <input ref="importInput" type="file" accept=".json,application/json" class="hidden" @change="onImportFile" />
           </div>
@@ -321,26 +435,28 @@ const previewPublic = computed<PublicQuestion | null>(() =>
       </section>
     </main>
 
-    <div class="fixed inset-x-0 bottom-0 border-t border-slate-200 bg-white/90 backdrop-blur">
+    <div class="fixed inset-x-0 bottom-0 border-t border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
       <div class="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
-        <p class="text-sm text-slate-400">{{ questions.length }} question{{ questions.length === 1 ? '' : 's' }} saved</p>
+        <p class="text-sm text-slate-400 dark:text-slate-500">{{ questions.length }} question{{ questions.length === 1 ? '' : 's' }} saved</p>
         <button
           v-if="game.status === 'FINISHED'"
           type="button"
-          class="btn-touch rounded-2xl bg-indigo-600 px-6 py-3 font-display font-bold text-white shadow-lg disabled:opacity-40"
+          class="btn-touch flex items-center gap-1.5 rounded-2xl bg-indigo-600 px-6 py-3 font-display font-bold text-white shadow-lg disabled:opacity-40"
           :disabled="restarting"
           @click="restart"
         >
-          {{ restarting ? 'Restarting…' : 'Restart Game →' }}
+          {{ restarting ? 'Restarting…' : 'Restart Game' }}
+          <Icon v-if="!restarting" name="tabler:arrow-right" class="h-5 w-5" />
         </button>
         <button
           v-else
           type="button"
-          class="btn-touch rounded-2xl bg-emerald-600 px-6 py-3 font-display font-bold text-white shadow-lg disabled:opacity-40"
+          class="btn-touch flex items-center gap-1.5 rounded-2xl bg-emerald-600 px-6 py-3 font-display font-bold text-white shadow-lg disabled:opacity-40"
           :disabled="questions.length === 0 || launching"
           @click="launch"
         >
-          {{ launching ? 'Launching…' : 'Launch Game →' }}
+          {{ launching ? 'Launching…' : 'Launch Game' }}
+          <Icon v-if="!launching" name="tabler:arrow-right" class="h-5 w-5" />
         </button>
       </div>
     </div>
@@ -354,10 +470,14 @@ const previewPublic = computed<PublicQuestion | null>(() =>
 
     <!-- Preview modal -->
     <div v-if="previewQuestion && previewPublic" class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/60 p-4" @click.self="previewQuestion = null">
-      <div class="flex max-h-[90vh] w-full max-w-xl flex-col items-center gap-4 overflow-y-auto rounded-3xl bg-white p-8">
-        <p class="font-display text-2xl font-bold text-slate-800">{{ previewQuestion.text }}</p>
+      <div class="flex max-h-[90vh] w-full max-w-xl flex-col items-center gap-4 overflow-y-auto rounded-3xl bg-white p-8 dark:bg-slate-800">
+        <p class="font-display text-2xl font-bold text-slate-800 dark:text-slate-100">{{ previewQuestion.text }}</p>
         <component :is="previewComponents[previewQuestion.type]" v-bind="previewPublic.config" disabled />
-        <button type="button" class="btn-touch rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-600" @click="previewQuestion = null">
+        <button
+          type="button"
+          class="btn-touch rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200"
+          @click="previewQuestion = null"
+        >
           Close preview
         </button>
       </div>

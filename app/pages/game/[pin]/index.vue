@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { ClientMessage } from '#shared/types'
 import GameTutorial from '~/components/player/GameTutorial.vue'
+import CompleteTextQuestion from '~/components/questions/CompleteTextQuestion.vue'
+import FillBlankQuestion from '~/components/questions/FillBlankQuestion.vue'
 import PinAnswerQuestion from '~/components/questions/PinAnswerQuestion.vue'
 import PuzzleQuestion from '~/components/questions/PuzzleQuestion.vue'
 import QuizQuestion from '~/components/questions/QuizQuestion.vue'
@@ -40,6 +42,7 @@ function submitAnswer(answer: unknown) {
 }
 
 const teammates = computed(() => liveGame.players.filter((p) => p.teamId === liveGame.self?.team?.id))
+const isIndividual = computed(() => liveGame.game?.mode === 'INDIVIDUAL')
 
 const questionComponents = {
   quiz: QuizQuestion,
@@ -47,7 +50,9 @@ const questionComponents = {
   type_answer: TypeAnswerQuestion,
   slider: SliderQuestion,
   pin_answer: PinAnswerQuestion,
-  puzzle: PuzzleQuestion
+  puzzle: PuzzleQuestion,
+  fill_blank: FillBlankQuestion,
+  complete_text: CompleteTextQuestion
 }
 
 const myTeamResult = computed(() => liveGame.lastResults?.teamResults.find((r) => r.teamId === liveGame.self?.team?.id))
@@ -90,7 +95,7 @@ const iWon = computed(() => liveGame.finalLeaderboard?.[0]?.teamId === liveGame.
         <h1 class="font-display text-2xl font-extrabold">{{ liveGame.game.title }}</h1>
         <p class="text-white/70">Hi {{ liveGame.self?.player.name }}!</p>
 
-        <div v-if="liveGame.self?.team" class="card w-full max-w-sm p-5 text-slate-800">
+        <div v-if="!isIndividual && liveGame.self?.team" class="card w-full max-w-sm p-5 text-slate-800">
           <p class="mb-2 flex items-center justify-center gap-2 font-display text-lg font-bold" :style="{ color: liveGame.self.team.color }">
             <span class="h-3 w-3 rounded-full" :style="{ backgroundColor: liveGame.self.team.color }" />
             {{ liveGame.self.team.name }}
@@ -99,7 +104,7 @@ const iWon = computed(() => liveGame.finalLeaderboard?.[0]?.teamId === liveGame.
             <li v-for="tm in teammates" :key="tm.id">{{ tm.name }}{{ tm.id === liveGame.self?.player.id ? ' (you)' : '' }}</li>
           </ul>
         </div>
-        <p v-else class="text-white/60">Waiting to be assigned a team…</p>
+        <p v-else-if="!isIndividual" class="text-white/60">Waiting to be assigned a team…</p>
 
         <button
           type="button"
@@ -126,7 +131,7 @@ const iWon = computed(() => liveGame.finalLeaderboard?.[0]?.teamId === liveGame.
 
         <div v-if="liveGame.myTeamLocked" class="flex flex-col items-center gap-3 py-6">
           <div class="text-5xl">✅</div>
-          <p class="font-display text-2xl font-extrabold text-emerald-300">Your team got it!</p>
+          <p class="font-display text-2xl font-extrabold text-emerald-300">{{ isIndividual ? 'You got it!' : 'Your team got it!' }}</p>
           <PlayerWaiting message="Waiting for the question to end…" />
         </div>
         <template v-else>
@@ -145,7 +150,12 @@ const iWon = computed(() => liveGame.finalLeaderboard?.[0]?.teamId === liveGame.
 
       <!-- RESULTS -->
       <main v-else-if="liveGame.game.status === 'QUESTION_RESULTS' && liveGame.lastResults" class="flex flex-col items-center gap-6 px-4 py-8">
-        <PlayerResult :result="myTeamResult" :score-awarded="myTeamResult?.scoreAwarded" :last-results="liveGame.lastResults" />
+        <PlayerResult
+          :result="myTeamResult"
+          :score-awarded="myTeamResult?.scoreAwarded"
+          :last-results="liveGame.lastResults"
+          :individual="isIndividual"
+        />
         <div class="w-full max-w-sm card p-5 text-slate-800">
           <h2 class="mb-3 text-center font-display text-lg font-bold">Leaderboard</h2>
           <GameLeaderboard :entries="liveGame.leaderboard" compact />
@@ -156,7 +166,9 @@ const iWon = computed(() => liveGame.finalLeaderboard?.[0]?.teamId === liveGame.
       <main v-else-if="liveGame.game.status === 'FINISHED'" class="flex flex-col items-center gap-6 px-4 py-10 text-center">
         <ConfettiBurst v-if="iWon" />
         <div class="text-6xl">{{ iWon ? '🏆' : '🎮' }}</div>
-        <h1 class="font-display text-3xl font-extrabold">{{ iWon ? 'Your team won!' : 'Game Over' }}</h1>
+        <h1 class="font-display text-3xl font-extrabold">
+          {{ iWon ? (isIndividual ? 'You won!' : 'Your team won!') : 'Game Over' }}
+        </h1>
         <div class="w-full max-w-sm card p-5 text-slate-800">
           <GameLeaderboard :entries="liveGame.finalLeaderboard ?? liveGame.leaderboard" />
         </div>

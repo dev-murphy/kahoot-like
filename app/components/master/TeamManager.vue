@@ -64,39 +64,41 @@ async function copyLink(team: Team) {
         v-model="newTeamName"
         type="text"
         placeholder="New team name"
-        class="flex-1 rounded-xl border border-slate-200 px-4 py-2"
+        class="flex-1 rounded-xl border border-slate-200 px-4 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
         @keyup.enter="addTeam"
       />
-      <button type="button" class="btn-touch rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white" @click="addTeam">
-        + Add Team
+      <button type="button" class="btn-touch flex items-center gap-1 rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white" @click="addTeam">
+        <Icon name="tabler:plus" class="h-4 w-4" /> Add Team
       </button>
     </div>
 
-    <div v-if="teams.length === 0" class="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+    <div v-if="teams.length === 0" class="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:bg-slate-800 dark:text-slate-500">
       No teams yet. Add one above.
     </div>
 
     <div v-for="team in teams" :key="team.id" class="card flex flex-col gap-2 p-4">
       <div class="flex flex-wrap items-center gap-3">
-        <span class="h-6 w-6 shrink-0 rounded-full ring-2 ring-white shadow" :style="{ backgroundColor: team.color }" />
+        <span class="h-6 w-6 shrink-0 rounded-full ring-2 ring-white shadow dark:ring-slate-800" :style="{ backgroundColor: team.color }" />
         <input
           :value="team.name"
           type="text"
-          class="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1 font-display text-lg font-bold text-slate-800 hover:border-slate-200 focus:border-indigo-400 focus:outline-none"
+          class="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1 font-display text-lg font-bold text-slate-800 hover:border-slate-200 focus:border-indigo-400 focus:outline-none dark:text-slate-100 dark:hover:border-slate-600"
           @change="renameTeam(team, ($event.target as HTMLInputElement).value)"
         />
-        <span class="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
+        <span class="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-300">
           {{ memberCount(team.id) }} player{{ memberCount(team.id) === 1 ? '' : 's' }}
         </span>
-        <button type="button" class="shrink-0 text-slate-300 hover:text-red-500" @click="removeTeam(team)">✕</button>
+        <button type="button" class="shrink-0 text-slate-300 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400" @click="removeTeam(team)">
+          <Icon name="tabler:x" class="h-4 w-4" />
+        </button>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <button
           v-for="c in TEAM_COLORS"
           :key="c.value"
           type="button"
-          class="h-6 w-6 rounded-full ring-offset-2 transition"
-          :class="team.color === c.value ? 'ring-2 ring-slate-800' : ''"
+          class="h-6 w-6 rounded-full ring-offset-2 transition dark:ring-offset-slate-800"
+          :class="team.color === c.value ? 'ring-2 ring-slate-800 dark:ring-white' : ''"
           :style="{ backgroundColor: c.value }"
           :title="c.name"
           @click="recolorTeam(team, c.value)"
@@ -104,10 +106,10 @@ async function copyLink(team: Team) {
         <button
           v-if="pin"
           type="button"
-          class="ml-auto rounded-lg bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-200"
+          class="ml-auto flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
           @click="copyLink(team)"
         >
-          {{ copiedTeamId === team.id ? 'Copied!' : 'Copy join link' }}
+          <Icon name="tabler:link" class="h-3.5 w-3.5" /> {{ copiedTeamId === team.id ? 'Copied!' : 'Copy join link' }}
         </button>
       </div>
     </div>

@@ -67,7 +67,9 @@ function teamAnswered(teamId: string) {
           >
             <span class="h-4 w-4 shrink-0 rounded-full" :style="{ backgroundColor: team.color }" />
             <span class="min-w-0 flex-1 truncate font-semibold">{{ team.name }}</span>
-            <span v-if="teamAnswered(team.id)" class="shrink-0 text-emerald-400">✓ answered</span>
+            <span v-if="teamAnswered(team.id)" class="flex shrink-0 items-center gap-1 text-emerald-400">
+              <Icon name="tabler:check" class="h-4 w-4" /> answered
+            </span>
             <span v-else class="shrink-0 text-white/30">…</span>
           </div>
         </div>
@@ -88,8 +90,9 @@ function teamAnswered(teamId: string) {
               <span class="h-3 w-3 rounded-full" :style="{ backgroundColor: tr.color }" />
               <span class="font-semibold">{{ tr.teamName }}</span>
             </div>
-            <p class="mt-1 text-sm" :class="tr.correct ? 'text-emerald-300' : 'text-red-300'">
-              {{ tr.correct ? `✓ Correct · +${tr.scoreAwarded}` : tr.answered ? '✕ Incorrect' : '– No answer' }}
+            <p class="mt-1 flex items-center gap-1 text-sm" :class="tr.correct ? 'text-emerald-300' : 'text-red-300'">
+              <Icon :name="tr.correct ? 'tabler:check' : tr.answered ? 'tabler:x' : 'tabler:minus'" class="h-4 w-4 shrink-0" />
+              {{ tr.correct ? `Correct · +${tr.scoreAwarded}` : tr.answered ? 'Incorrect' : 'No answer' }}
             </p>
           </div>
         </div>
@@ -107,52 +110,52 @@ function teamAnswered(teamId: string) {
         <button
           v-if="!liveGame.game?.paused"
           type="button"
-          class="btn-touch rounded-xl bg-white/10 px-4 py-2 text-sm font-bold hover:bg-white/20 disabled:opacity-40"
+          class="btn-touch flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-sm font-bold hover:bg-white/20 disabled:opacity-40"
           :disabled="acting || liveGame.game?.status !== 'QUESTION_ACTIVE'"
           @click="control('pause')"
         >
-          ⏸ Pause
+          <Icon name="tabler:player-pause" class="h-4 w-4" /> Pause
         </button>
         <button
           v-else
           type="button"
-          class="btn-touch rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-slate-900"
+          class="btn-touch flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-slate-900"
           :disabled="acting"
           @click="control('resume')"
         >
-          ▶ Resume
+          <Icon name="tabler:player-play" class="h-4 w-4" /> Resume
         </button>
         <button
           type="button"
-          class="btn-touch rounded-xl bg-white/10 px-4 py-2 text-sm font-bold hover:bg-white/20 disabled:opacity-40"
+          class="btn-touch flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-sm font-bold hover:bg-white/20 disabled:opacity-40"
           :disabled="acting || liveGame.game?.status !== 'QUESTION_ACTIVE'"
           @click="control('skip')"
         >
-          ⏭ Skip Question
+          <Icon name="tabler:player-skip-forward" class="h-4 w-4" /> Skip Question
         </button>
         <button
           type="button"
-          class="btn-touch rounded-xl bg-indigo-500 px-4 py-2 text-sm font-bold hover:bg-indigo-400 disabled:opacity-40"
+          class="btn-touch flex items-center gap-1.5 rounded-xl bg-indigo-500 px-4 py-2 text-sm font-bold hover:bg-indigo-400 disabled:opacity-40"
           :disabled="acting || liveGame.game?.status !== 'QUESTION_RESULTS'"
           @click="control('next')"
         >
-          ⏩ Next Question
+          <Icon name="tabler:arrow-right" class="h-4 w-4" /> Next Question
         </button>
         <button
           type="button"
-          class="btn-touch rounded-xl bg-white/10 px-4 py-2 text-sm font-bold hover:bg-white/20 disabled:opacity-40"
+          class="btn-touch flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-sm font-bold hover:bg-white/20 disabled:opacity-40"
           :disabled="acting || !liveGame.currentQuestion"
           @click="control('restart')"
         >
-          ↺ Restart Question
+          <Icon name="tabler:refresh" class="h-4 w-4" /> Restart Question
         </button>
         <button
           v-if="!confirmEnd"
           type="button"
-          class="btn-touch rounded-xl bg-red-600/80 px-4 py-2 text-sm font-bold hover:bg-red-600"
+          class="btn-touch flex items-center gap-1.5 rounded-xl bg-red-600/80 px-4 py-2 text-sm font-bold hover:bg-red-600"
           @click="confirmEnd = true"
         >
-          ■ End Game
+          <Icon name="tabler:player-stop" class="h-4 w-4" /> End Game
         </button>
         <template v-else>
           <span class="text-sm font-semibold text-white/70">End game now?</span>

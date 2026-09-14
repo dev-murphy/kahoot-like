@@ -30,14 +30,16 @@ async function restart() {
 <template>
   <div class="app-bg flex min-h-screen flex-col items-center px-6 py-12 text-white">
     <ConfettiBurst v-if="winner" />
-    <NuxtLink to="/master" class="mb-6 self-start text-sm font-semibold text-white/60 hover:text-white">← Dashboard</NuxtLink>
+    <NuxtLink to="/master" class="mb-6 flex items-center gap-1.5 self-start text-sm font-semibold text-white/60 hover:text-white">
+      <Icon name="tabler:arrow-left" class="h-4 w-4" /> Dashboard
+    </NuxtLink>
 
     <div class="animate-pop-in flex w-full max-w-xl flex-col items-center gap-6 text-center">
       <p class="font-display text-lg font-bold uppercase tracking-widest text-white/60">Game Over</p>
       <h1 class="font-display text-4xl font-extrabold">{{ liveGame.game?.title }}</h1>
 
       <div v-if="winner" class="flex flex-col items-center gap-2">
-        <div class="text-7xl">🏆</div>
+        <Icon name="tabler:trophy" class="h-16 w-16 text-amber-300" />
         <p class="font-display text-3xl font-extrabold" :style="{ color: winner.color }">{{ winner.name }} wins!</p>
         <p class="text-white/70">{{ winner.score.toLocaleString() }} points</p>
       </div>

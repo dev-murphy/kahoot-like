@@ -14,7 +14,9 @@ const TYPE_MAP: Record<string, QuestionType> = {
   multiple_choice: 'quiz',
   slider: 'slider',
   order: 'puzzle',
-  type_answer: 'type_answer'
+  type_answer: 'type_answer',
+  fill_blank: 'fill_blank',
+  complete_text: 'complete_text'
 }
 
 export interface RawImportQuestion {
@@ -26,8 +28,11 @@ export interface RawImportQuestion {
   /** Free-text metadata (e.g. book/section) — accepted but not stored. */
   scope?: string
   question?: string
+  /** Alternate name for `question` (the display prompt), used by fill_blank/complete_text exports. */
+  prompt?: string
   // true_false
-  answer?: boolean
+  // complete_text (full sentence — same key reused for its answer string)
+  answer?: boolean | string
   // multiple_choice
   options?: string[]
   correctIndex?: number
@@ -42,6 +47,11 @@ export interface RawImportQuestion {
   // type_answer
   correctAnswer?: string
   acceptableAnswers?: string[]
+  // fill_blank (template text with {blank} tokens)
+  text?: string
+  answers?: string[]
+  // fill_blank / complete_text
+  wordBank?: string[]
 }
 
 export interface TransformedQuestion {
@@ -91,13 +101,19 @@ export function transformImportQuestion(raw: RawImportQuestion): TransformedQues
       }
       break
     }
+    case 'fill_blank':
+      config = { template: raw.text ?? '', answers: raw.answers ?? [], wordBank: raw.wordBank ?? [] }
+      break
+    case 'complete_text':
+      config = { answer: (raw.answer as string) ?? '', wordBank: raw.wordBank ?? [] }
+      break
     default:
       throw createError({ statusCode: 400, statusMessage: `Unsupported question type "${raw.type}"` })
   }
 
   return {
     type: internalType,
-    text: raw.question,
+    text: raw.prompt ?? raw.question,
     config,
     timeLimit: raw.timeLimitSeconds ?? raw.term,
     points

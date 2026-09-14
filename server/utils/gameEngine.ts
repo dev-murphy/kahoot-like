@@ -199,7 +199,7 @@ export function submitAnswer(
       type: 'ANSWER_ACK',
       correct: true,
       locked: true,
-      message: 'Your team already answered this one!'
+      message: game.mode === 'INDIVIDUAL' ? 'You already answered this one!' : 'Your team already answered this one!'
     })
     return
   }
@@ -228,7 +228,7 @@ export function submitAnswer(
       type: 'ANSWER_ACK',
       correct: true,
       locked: true,
-      message: 'Correct! Your team got it!',
+      message: game.mode === 'INDIVIDUAL' ? 'Correct!' : 'Correct! Your team got it!',
       scoreAwarded: score
     })
     broadcast(gameId, {

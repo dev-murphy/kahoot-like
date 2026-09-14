@@ -1,9 +1,40 @@
 import type { QuestionConfig, QuestionType } from '#shared/types'
+import { countBlanks } from '#shared/utils/fillBlank'
+import { tokenizeAnswer } from '#shared/utils/tokenize'
 
-const VALID_TYPES: QuestionType[] = ['quiz', 'true_false', 'type_answer', 'slider', 'pin_answer', 'puzzle']
+const VALID_TYPES: QuestionType[] = [
+  'quiz',
+  'true_false',
+  'type_answer',
+  'slider',
+  'pin_answer',
+  'puzzle',
+  'fill_blank',
+  'complete_text'
+]
 
 function bad(message: string): never {
   throw createError({ statusCode: 400, statusMessage: message })
+}
+
+function normalizeKey(word: string): string {
+  return word.trim().toLowerCase()
+}
+
+/** Case-insensitive multiset containment: does `bank` have enough copies to cover every entry in `required`? */
+function hasSufficientCopies(bank: string[], required: string[]): boolean {
+  const counts = new Map<string, number>()
+  for (const word of bank) {
+    const key = normalizeKey(word)
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  for (const word of required) {
+    const key = normalizeKey(word)
+    const remaining = (counts.get(key) ?? 0) - 1
+    if (remaining < 0) return false
+    counts.set(key, remaining)
+  }
+  return true
 }
 
 export function validateQuestionInput(body: {
@@ -82,6 +113,36 @@ export function validateQuestionInput(body: {
       const c = config as { items?: string[] }
       if (!Array.isArray(c.items) || c.items.length < 2) bad('Puzzle needs at least 2 items to order')
       if (c.items!.some((item) => !item || !item.trim())) bad('Puzzle items cannot be empty')
+      break
+    }
+    case 'fill_blank': {
+      const c = config as { template?: string; answers?: string[]; wordBank?: string[] }
+      if (typeof c.template !== 'string' || !c.template.trim()) bad('Fill in the blank needs template text')
+      const blanks = countBlanks(c.template!)
+      if (blanks < 1) bad('Fill in the blank text must contain at least one {blank}')
+      if (!Array.isArray(c.answers) || c.answers.length !== blanks) {
+        bad(`Fill in the blank needs exactly ${blanks} answer(s) to match the {blank} count`)
+      }
+      if (c.answers!.some((a) => !a || !a.trim())) bad('Fill in the blank answers cannot be empty')
+      if (!Array.isArray(c.wordBank) || c.wordBank.length < 2) bad('Fill in the blank needs a word bank with at least 2 words')
+      if (c.wordBank!.some((w) => !w || !w.trim())) bad('Word bank words cannot be empty')
+      if (!hasSufficientCopies(c.wordBank!, c.answers!)) {
+        bad('Word bank must contain enough copies of each answer word to fill every blank')
+      }
+      break
+    }
+    case 'complete_text': {
+      const c = config as { answer?: string; wordBank?: string[] }
+      if (typeof c.answer !== 'string' || !c.answer.trim()) bad('Complete the text needs an answer sentence')
+      const tokens = tokenizeAnswer(c.answer!)
+      if (tokens.length < 2) bad('Complete the text answer needs at least 2 words')
+      if (!Array.isArray(c.wordBank) || c.wordBank.length < tokens.length) {
+        bad('Word bank must contain at least as many words as the answer')
+      }
+      if (c.wordBank!.some((w) => !w || !w.trim())) bad('Word bank words cannot be empty')
+      if (!hasSufficientCopies(c.wordBank!, tokens)) {
+        bad('Word bank must contain enough copies of each word in the answer')
+      }
       break
     }
   }

@@ -6,6 +6,7 @@ const props = defineProps<{
   result?: TeamQuestionResult
   scoreAwarded?: number
   lastResults?: QuestionEndedPayload | null
+  individual?: boolean
 }>()
 
 const quizAnswer = computed(() => {
@@ -18,27 +19,43 @@ const puzzleAnswer = computed(() => {
   return props.lastResults.correctAnswer as string[]
 })
 
+const fillBlankAnswer = computed(() => {
+  if (props.lastResults?.question.type !== 'fill_blank') return null
+  return props.lastResults.correctAnswer as string[]
+})
+
+const completeTextAnswer = computed(() => {
+  if (props.lastResults?.question.type !== 'complete_text') return null
+  return props.lastResults.correctAnswer as string
+})
+
 const simpleAnswer = computed(() => {
   const type = props.lastResults?.question.type
-  if (!type || type === 'quiz' || type === 'puzzle' || type === 'pin_answer') return null
+  if (!type || type === 'quiz' || type === 'puzzle' || type === 'pin_answer' || type === 'fill_blank' || type === 'complete_text') {
+    return null
+  }
   const value = props.lastResults?.correctAnswer
   if (type === 'true_false') return value ? 'TRUE' : 'FALSE'
   return String(value)
 })
 
-const hasCorrectAnswer = computed(() => !!quizAnswer.value || !!puzzleAnswer.value || !!simpleAnswer.value)
+const hasCorrectAnswer = computed(
+  () => !!quizAnswer.value || !!puzzleAnswer.value || !!fillBlankAnswer.value || !!completeTextAnswer.value || !!simpleAnswer.value
+)
 </script>
 
 <template>
   <div class="animate-pop-in flex flex-col items-center gap-3 py-8 text-center">
     <template v-if="result?.correct">
       <div class="text-6xl">🎉</div>
-      <p class="font-display text-3xl font-extrabold text-emerald-600">Your team got it!</p>
+      <p class="font-display text-3xl font-extrabold text-emerald-600">{{ individual ? 'You got it!' : 'Your team got it!' }}</p>
       <p v-if="scoreAwarded" class="text-lg font-semibold text-slate-600">+{{ scoreAwarded.toLocaleString() }} points</p>
     </template>
     <template v-else>
       <div class="text-6xl">😬</div>
-      <p class="font-display text-3xl font-extrabold text-red-500">Your team needs another answer!</p>
+      <p class="font-display text-3xl font-extrabold text-red-500">
+        {{ individual ? 'You need another answer!' : 'Your team needs another answer!' }}
+      </p>
     </template>
 
     <div v-if="hasCorrectAnswer" class="card mt-2 w-full max-w-sm p-4">
@@ -50,6 +67,10 @@ const hasCorrectAnswer = computed(() => !!quizAnswer.value || !!puzzleAnswer.val
       <ol v-else-if="puzzleAnswer" class="flex flex-col gap-1 text-left text-sm font-semibold text-slate-700">
         <li v-for="(item, idx) in puzzleAnswer" :key="idx">{{ idx + 1 }}. {{ item }}</li>
       </ol>
+      <ol v-else-if="fillBlankAnswer" class="flex flex-col gap-1 text-left text-sm font-semibold text-slate-700">
+        <li v-for="(item, idx) in fillBlankAnswer" :key="idx">Blank {{ idx + 1 }}: {{ item }}</li>
+      </ol>
+      <p v-else-if="completeTextAnswer" class="font-display text-lg font-bold text-indigo-600">{{ completeTextAnswer }}</p>
       <p v-else class="font-display text-lg font-bold text-indigo-600">{{ simpleAnswer }}</p>
     </div>
   </div>

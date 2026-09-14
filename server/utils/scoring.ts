@@ -1,4 +1,6 @@
 import type {
+  CompleteTextConfig,
+  FillBlankConfig,
   PinAnswerConfig,
   PuzzleConfig,
   Question,
@@ -7,6 +9,7 @@ import type {
   TrueFalseConfig,
   TypeAnswerConfig
 } from '#shared/types'
+import { tokenizeAnswer } from '#shared/utils/tokenize'
 
 export interface EvaluationResult {
   correct: boolean
@@ -101,6 +104,27 @@ export function evaluateAnswer(
       return { correct, score: correct ? speedScore(question.points, elapsedMs, timeLimitMs) : 0 }
     }
 
+    case 'fill_blank': {
+      const config = question.config as FillBlankConfig
+      const filled = answer as (string | null)[] | null
+      const correct =
+        Array.isArray(filled) &&
+        filled.length === config.answers.length &&
+        filled.every((word, idx) => word != null && normalizeText(word) === normalizeText(config.answers[idx]!))
+      return { correct, score: correct ? speedScore(question.points, elapsedMs, timeLimitMs) : 0 }
+    }
+
+    case 'complete_text': {
+      const config = question.config as CompleteTextConfig
+      const chosen = answer as string[] | null
+      const canonical = tokenizeAnswer(config.answer)
+      const correct =
+        Array.isArray(chosen) &&
+        chosen.length === canonical.length &&
+        chosen.every((word, idx) => normalizeText(word) === normalizeText(canonical[idx]!))
+      return { correct, score: correct ? speedScore(question.points, elapsedMs, timeLimitMs) : 0 }
+    }
+
     default:
       return { correct: false, score: 0 }
   }
@@ -124,6 +148,10 @@ export function getCorrectAnswerDisplay(question: Question): unknown {
     }
     case 'puzzle':
       return (question.config as PuzzleConfig).items
+    case 'fill_blank':
+      return (question.config as FillBlankConfig).answers
+    case 'complete_text':
+      return (question.config as CompleteTextConfig).answer
     default:
       return null
   }

@@ -3,6 +3,7 @@ import { db } from './db'
 import type {
   AnswerRecord,
   Game,
+  GameMode,
   GameStatus,
   Player,
   Question,
@@ -20,6 +21,7 @@ interface GameRow {
   title: string
   pin: string | null
   status: string
+  mode: string
   current_question_index: number
   result_delay_seconds: number
   paused: number
@@ -34,6 +36,7 @@ function mapGame(row: GameRow): Game {
     title: row.title,
     pin: row.pin,
     status: row.status as GameStatus,
+    mode: row.mode as GameMode,
     currentQuestionIndex: row.current_question_index,
     resultDelaySeconds: row.result_delay_seconds,
     paused: !!row.paused,
@@ -104,13 +107,13 @@ function mapPlayer(row: PlayerRow): Player {
 // Games
 // ---------------------------------------------------------------------------
 
-export function createGame(title: string): Game {
+export function createGame(title: string, mode: GameMode = 'TEAM'): Game {
   const id = randomUUID()
   const now = Date.now()
   db.prepare(
-    `INSERT INTO games (id, title, pin, status, current_question_index, result_delay_seconds, paused, created_at, started_at, finished_at)
-     VALUES (?, ?, NULL, 'DRAFT', 0, 6, 0, ?, NULL, NULL)`
-  ).run(id, title, now)
+    `INSERT INTO games (id, title, pin, status, mode, current_question_index, result_delay_seconds, paused, created_at, started_at, finished_at)
+     VALUES (?, ?, NULL, 'DRAFT', ?, 0, 6, 0, ?, NULL, NULL)`
+  ).run(id, title, mode, now)
   return getGame(id)!
 }
 
@@ -377,18 +380,19 @@ export function createAnswer(input: Omit<AnswerRecord, 'id'>): AnswerRecord {
   return { ...input, id }
 }
 
-export function getAnswersForQuestion(questionId: string): AnswerRecord[] {
-  const rows = db.prepare('SELECT * FROM answers WHERE question_id = ?').all(questionId) as {
-    id: string
-    question_id: string
-    player_id: string
-    team_id: string
-    answer: string
-    correct: number
-    score: number
-    submitted_at: number
-  }[]
-  return rows.map((r) => ({
+interface AnswerRow {
+  id: string
+  question_id: string
+  player_id: string
+  team_id: string
+  answer: string
+  correct: number
+  score: number
+  submitted_at: number
+}
+
+function mapAnswer(r: AnswerRow): AnswerRecord {
+  return {
     id: r.id,
     questionId: r.question_id,
     playerId: r.player_id,
@@ -397,7 +401,24 @@ export function getAnswersForQuestion(questionId: string): AnswerRecord[] {
     correct: !!r.correct,
     score: r.score,
     submittedAt: r.submitted_at
-  }))
+  }
+}
+
+export function getAnswersForQuestion(questionId: string): AnswerRecord[] {
+  const rows = db.prepare('SELECT * FROM answers WHERE question_id = ?').all(questionId) as AnswerRow[]
+  return rows.map(mapAnswer)
+}
+
+export function getAnswersForGame(gameId: string): AnswerRecord[] {
+  const rows = db
+    .prepare(
+      `SELECT answers.* FROM answers
+       JOIN questions ON questions.id = answers.question_id
+       WHERE questions.game_id = ?
+       ORDER BY answers.submitted_at ASC`
+    )
+    .all(gameId) as AnswerRow[]
+  return rows.map(mapAnswer)
 }
 
 export function deleteAnswersForQuestion(questionId: string): void {

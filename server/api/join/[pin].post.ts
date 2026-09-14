@@ -1,6 +1,8 @@
+import { TEAM_COLORS } from '#shared/types'
 import { getPlayerToken, setPlayerCookie } from '../../utils/auth'
 import {
   createPlayer,
+  createTeam,
   findPlayerByNameInGame,
   getGameByPin,
   getPlayerByToken,
@@ -37,7 +39,13 @@ export default defineEventHandler(async (event) => {
   }
 
   let teamId: string | null = null
-  if (body?.teamId) {
+  if (game.mode === 'INDIVIDUAL') {
+    // Individual mode: every player is silently given their own 1-member team so the
+    // existing team-keyed scoring/locking/leaderboard logic works unchanged.
+    const existingTeams = listTeams(game.id)
+    const color = TEAM_COLORS[existingTeams.length % TEAM_COLORS.length]!.value
+    teamId = createTeam(game.id, name, color).id
+  } else if (body?.teamId) {
     const team = getTeam(body.teamId)
     if (team && team.gameId === game.id) teamId = team.id
   }

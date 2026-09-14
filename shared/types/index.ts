@@ -9,6 +9,8 @@ export type QuestionType =
   | 'slider'
   | 'pin_answer'
   | 'puzzle'
+  | 'fill_blank'
+  | 'complete_text'
 
 export interface QuizConfig {
   choices: string[] // 2-4 options
@@ -43,6 +45,17 @@ export interface PuzzleConfig {
   items: string[] // canonical/correct order of the items
 }
 
+export interface FillBlankConfig {
+  template: string // e.g. "The Lord is my {blank}; I shall not {blank}." — see shared/utils/fillBlank.ts
+  answers: string[] // correct word per blank, in order
+  wordBank: string[] // must contain enough copies to fill every blank, plus optional distractors
+}
+
+export interface CompleteTextConfig {
+  answer: string // full literal sentence, e.g. "The Lord is my shepherd; I shall not want."
+  wordBank: string[] // plain word tokens (no punctuation); must cover every token in `answer`, plus optional distractors
+}
+
 export type QuestionConfig =
   | QuizConfig
   | TrueFalseConfig
@@ -50,6 +63,8 @@ export type QuestionConfig =
   | SliderConfig
   | PinAnswerConfig
   | PuzzleConfig
+  | FillBlankConfig
+  | CompleteTextConfig
 
 export interface Question {
   id: string
@@ -76,11 +91,14 @@ export type GameStatus =
   | 'FINISHED'
   | 'CANCELLED'
 
+export type GameMode = 'TEAM' | 'INDIVIDUAL'
+
 export interface Game {
   id: string
   title: string
   pin: string | null
   status: GameStatus
+  mode: GameMode
   currentQuestionIndex: number
   resultDelaySeconds: number
   paused: boolean
