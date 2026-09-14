@@ -20,6 +20,8 @@ const teamId = ref('')
 const submitting = ref(false)
 const submitError = ref('')
 
+useHead({ title: () => (info.value?.title ? `Join ${info.value.title}` : 'Join a Game') })
+
 const { data, error } = await useFetch<JoinInfo>(`/api/join/${pin}`)
 if (data.value) info.value = data.value
 if (error.value) {

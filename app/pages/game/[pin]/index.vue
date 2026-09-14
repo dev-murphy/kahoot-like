@@ -17,6 +17,8 @@ const pin = String(route.params.pin)
 const liveGame = useLiveGameStore()
 liveGame.reset()
 
+useHead({ title: () => liveGame.game?.title ?? 'Playing' })
+
 const retryToken = ref(0)
 const showTutorial = ref(false)
 let ackTimer: ReturnType<typeof setTimeout> | null = null

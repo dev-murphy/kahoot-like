@@ -8,6 +8,8 @@ const gameId = String(route.params.id)
 const liveGame = useLiveGameStore()
 if (!liveGame.game) liveGame.reset()
 
+useHead({ title: () => (liveGame.game?.title ? `${liveGame.game.title} · Play` : 'Play') })
+
 useGameSocket(() => `${wsBaseUrl()}?role=master&gameId=${gameId}`, liveGame.applyServerMessage)
 
 watch(

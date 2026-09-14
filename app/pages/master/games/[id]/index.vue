@@ -36,6 +36,8 @@ const players = ref<Player[]>([])
 const loadError = ref('')
 const titleDraft = ref('')
 
+useHead({ title: () => (game.value?.title ? `${game.value.title} · Edit` : 'Edit Game') })
+
 const authedFetch = useAuthedFetch()
 
 async function refresh() {

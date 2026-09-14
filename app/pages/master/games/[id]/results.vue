@@ -7,6 +7,8 @@ const gameId = String(route.params.id)
 const liveGame = useLiveGameStore()
 if (!liveGame.game) liveGame.reset()
 
+useHead({ title: () => (liveGame.game?.title ? `${liveGame.game.title} · Results` : 'Results') })
+
 useGameSocket(() => `${wsBaseUrl()}?role=master&gameId=${gameId}`, liveGame.applyServerMessage)
 
 const winner = computed(() => liveGame.finalLeaderboard?.[0] ?? liveGame.leaderboard[0] ?? null)

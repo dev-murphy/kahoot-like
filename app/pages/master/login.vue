@@ -1,4 +1,6 @@
 <script setup lang="ts">
+useHead({ title: 'Game Master Login' })
+
 const store = useMasterStore()
 const username = ref('')
 const password = ref('')
@@ -24,7 +26,7 @@ async function submit() {
   <div class="app-bg flex min-h-screen flex-col items-center justify-center px-6 py-12 text-white">
     <form class="animate-pop-in w-full max-w-sm card flex flex-col gap-4 p-6" @submit.prevent="submit">
       <div class="text-center">
-        <Icon name="tabler:adjustments" class="mx-auto h-9 w-9 text-indigo-600 dark:text-indigo-400" />
+        <img src="/logo.png" alt="QuizRush" class="mx-auto h-14 w-14" />
         <h1 class="font-display text-2xl font-extrabold text-slate-800 dark:text-slate-100">Game Master</h1>
         <p class="text-sm text-slate-400 dark:text-slate-500">Sign in to manage tonight's games</p>
       </div>

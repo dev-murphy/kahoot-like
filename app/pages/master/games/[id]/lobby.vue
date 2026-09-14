@@ -8,6 +8,8 @@ const gameId = String(route.params.id)
 const liveGame = useLiveGameStore()
 liveGame.reset()
 
+useHead({ title: () => (liveGame.game?.title ? `${liveGame.game.title} · Lobby` : 'Lobby') })
+
 const joinUrl = computed(() => {
   if (typeof window === 'undefined' || !liveGame.game?.pin) return ''
   return `${window.location.origin}/join/${liveGame.game.pin}`

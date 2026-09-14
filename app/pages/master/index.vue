@@ -2,6 +2,7 @@
 import { downloadJson } from '~/utils/downloadJson'
 
 definePageMeta({ middleware: 'master-auth' })
+useHead({ title: 'Dashboard' })
 
 const store = useMasterStore()
 const router = useRouter()
@@ -66,7 +67,10 @@ function continueLink(game: { id: string; status: string }) {
   <div class="min-h-screen bg-slate-50 pb-16 dark:bg-slate-900">
     <header class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        <h1 class="font-display text-xl font-extrabold text-slate-800 dark:text-slate-100">Game Master</h1>
+        <div class="flex items-center gap-2">
+          <img src="/logo.png" alt="QuizRush" class="h-8 w-8" />
+          <h1 class="font-display text-xl font-extrabold text-slate-800 dark:text-slate-100">Game Master</h1>
+        </div>
         <div class="flex items-center gap-3">
           <ThemeToggle />
           <button

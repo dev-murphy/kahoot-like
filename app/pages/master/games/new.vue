@@ -2,6 +2,7 @@
 import type { GameMode } from '#shared/types'
 
 definePageMeta({ middleware: 'master-auth' })
+useHead({ title: 'New Game' })
 
 const title = ref('')
 const mode = ref<GameMode>('TEAM')
