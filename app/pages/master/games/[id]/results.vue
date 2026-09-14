@@ -50,6 +50,8 @@ async function restart() {
         <GameLeaderboard :entries="entries" />
       </div>
 
+      <CatchupPanel :game-id="gameId" :mode="liveGame.game?.mode ?? 'TEAM'" class="w-full text-left" />
+
       <div v-if="!confirmingRestart">
         <button
           type="button"

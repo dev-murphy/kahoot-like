@@ -1,6 +1,6 @@
 import { TEAM_COLORS } from '#shared/types'
 import { requireGameMaster } from '../../../utils/auth'
-import { createTeam, getGame, listTeams } from '../../../utils/repo'
+import { createTeam, getGame, listMainTeams } from '../../../utils/repo'
 import { broadcast } from '../../../utils/wsRegistry'
 
 export default defineEventHandler(async (event) => {
@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
   const name = (body?.name ?? '').trim()
   if (!name) throw createError({ statusCode: 400, statusMessage: 'Team name is required' })
 
-  const existingCount = listTeams(gameId).length
+  const existingCount = listMainTeams(gameId).length
   const color = body?.color || TEAM_COLORS[existingCount % TEAM_COLORS.length]!.value
 
   const team = createTeam(gameId, name, color)

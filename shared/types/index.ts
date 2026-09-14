@@ -110,6 +110,8 @@ export interface Game {
 export interface Team {
   id: string
   gameId: string
+  /** Null for a main-session team; set to a catch-up session id for a team formed within that session. */
+  sessionId: string | null
   name: string
   color: string
   score: number
@@ -148,6 +150,34 @@ export const TEAM_COLORS: { name: string; value: string }[] = [
 
 export const QUIZ_ANSWER_COLORS = ['#EF4444', '#3B82F6', '#EAB308', '#22C55E']
 export const QUIZ_ANSWER_SHAPES = ['triangle', 'diamond', 'circle', 'square'] as const
+
+/**
+ * A second, independent play-through of the same game's questions, for
+ * players who join after the main session has moved on (or finished).
+ * It reuses the game's questions and scoring; any teams it creates are
+ * ordinary `teams` rows (tagged with this session's id), so their scores
+ * are automatically included in the game's normal leaderboard.
+ */
+export type CatchupStatus = 'LOBBY' | 'QUESTION_ACTIVE' | 'QUESTION_RESULTS' | 'FINISHED'
+
+export interface CatchupSession {
+  id: string
+  gameId: string
+  status: CatchupStatus
+  currentQuestionIndex: number
+  createdAt: number
+  finishedAt: number | null
+}
+
+export interface CatchupSyncPayload {
+  /** Null when no catch-up session exists (or the last one finished and was dismissed). */
+  session: CatchupSession | null
+  teams: Team[]
+  players: Player[]
+  totalQuestions: number
+  currentQuestion: QuestionStartedPayload | null
+  lastResults: QuestionEndedPayload | null
+}
 
 export interface LeaderboardEntry {
   teamId: string
@@ -234,6 +264,7 @@ export type ServerMessage =
   | { type: 'KICKED'; message: string }
   | { type: 'ERROR'; message: string }
   | { type: 'PONG' }
+  | { type: 'CATCHUP_SYNC'; payload: CatchupSyncPayload }
 
 export type ClientMessage =
   | { type: 'ANSWER_SUBMIT'; questionId: string; answer: unknown }

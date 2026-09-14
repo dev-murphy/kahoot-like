@@ -8,6 +8,9 @@ const store = useMasterStore()
 const router = useRouter()
 const deleting = ref<string | null>(null)
 const exporting = ref(false)
+const importing = ref(false)
+const importInput = ref<HTMLInputElement | null>(null)
+const importError = ref('')
 
 await store.fetchGames()
 
@@ -23,6 +26,37 @@ async function exportAllData() {
     downloadJson(data, `quizrush-export-${new Date().toISOString().slice(0, 10)}.json`)
   } finally {
     exporting.value = false
+  }
+}
+
+function openImport() {
+  importError.value = ''
+  importInput.value?.click()
+}
+
+async function onImportFile(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+
+  importError.value = ''
+  importing.value = true
+  try {
+    const text = await file.text()
+    const body = JSON.parse(text)
+    const result = await $fetch('/api/import', { method: 'POST', body })
+    await store.fetchGames()
+    const parts = [`${result.imported.length} game${result.imported.length === 1 ? '' : 's'} imported`]
+    if (result.skipped.length) parts.push(`${result.skipped.length} already present, skipped`)
+    alert(parts.join(' · '))
+  } catch (err: unknown) {
+    importError.value =
+      (err as { data?: { statusMessage?: string } })?.data?.statusMessage ??
+      (err as { message?: string })?.message ??
+      'Failed to import data'
+  } finally {
+    importing.value = false
   }
 }
 
@@ -91,6 +125,16 @@ function continueLink(game: { id: string; status: string }) {
           <button
             type="button"
             class="btn-touch flex items-center gap-1.5 rounded-2xl bg-slate-100 px-4 py-3 font-display font-bold text-slate-700 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-200"
+            :disabled="importing"
+            @click="openImport"
+          >
+            <Icon name="tabler:upload" class="h-5 w-5" />
+            {{ importing ? 'Importing…' : 'Import Data' }}
+          </button>
+          <input ref="importInput" type="file" accept=".json,application/json" class="hidden" @change="onImportFile" />
+          <button
+            type="button"
+            class="btn-touch flex items-center gap-1.5 rounded-2xl bg-slate-100 px-4 py-3 font-display font-bold text-slate-700 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-200"
             :disabled="exporting"
             @click="exportAllData"
           >
@@ -106,6 +150,10 @@ function continueLink(game: { id: string; status: string }) {
           </NuxtLink>
         </div>
       </div>
+
+      <p v-if="importError" class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600 dark:bg-red-500/10 dark:text-red-400">
+        {{ importError }}
+      </p>
 
       <div v-if="store.games.length === 0" class="card p-10 text-center text-slate-400 dark:text-slate-500">
         No games yet. Create one to get started.

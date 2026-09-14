@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import type {
+  CatchupSyncPayload,
   Game,
   LeaderboardEntry,
   Player,
@@ -27,6 +28,7 @@ export const useLiveGameStore = defineStore('liveGame', () => {
   const kicked = ref<string | null>(null)
   const cancelled = ref<string | null>(null)
   const lastError = ref<string | null>(null)
+  const catchup = ref<CatchupSyncPayload | null>(null)
 
   const myTeam = computed(() => self.value?.team ?? null)
 
@@ -47,6 +49,7 @@ export const useLiveGameStore = defineStore('liveGame', () => {
     kicked.value = null
     cancelled.value = null
     lastError.value = null
+    catchup.value = null
   }
 
   function applyServerMessage(msg: ServerMessage) {
@@ -170,6 +173,10 @@ export const useLiveGameStore = defineStore('liveGame', () => {
         lastError.value = msg.message
         break
       }
+      case 'CATCHUP_SYNC': {
+        catchup.value = msg.payload
+        break
+      }
     }
   }
 
@@ -191,6 +198,7 @@ export const useLiveGameStore = defineStore('liveGame', () => {
     kicked,
     cancelled,
     lastError,
+    catchup,
     applyServerMessage,
     reset
   }

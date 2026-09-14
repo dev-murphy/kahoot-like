@@ -1,6 +1,7 @@
 import { requireGameMaster } from '../../utils/auth'
+import { removeCatchupRuntime } from '../../utils/catchupEngine'
 import { removeRuntime } from '../../utils/gameEngine'
-import { deleteGame, getGame } from '../../utils/repo'
+import { deleteGame, getActiveCatchupSession, getGame } from '../../utils/repo'
 
 export default defineEventHandler((event) => {
   requireGameMaster(event)
@@ -8,6 +9,8 @@ export default defineEventHandler((event) => {
   const game = getGame(id)
   if (!game) throw createError({ statusCode: 404, statusMessage: 'Game not found' })
   removeRuntime(id)
+  const catchupSession = getActiveCatchupSession(id)
+  if (catchupSession) removeCatchupRuntime(catchupSession.id)
   deleteGame(id)
   return { ok: true }
 })

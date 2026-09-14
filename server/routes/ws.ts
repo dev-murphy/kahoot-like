@@ -1,5 +1,6 @@
 import type { ClientMessage } from '#shared/types'
 import { GM_COOKIE, parseCookieHeader, playerCookieName } from '../utils/auth'
+import { buildCatchupSyncForMaster } from '../utils/catchupEngine'
 import { buildFullSyncState, submitAnswer } from '../utils/gameEngine'
 import {
   getGame,
@@ -36,6 +37,7 @@ export default defineWebSocketHandler({
         registerPeer(peer, { role: 'master', gameId })
         const state = buildFullSyncState(gameId, null)
         if (state) sendMessage(peer, { type: 'STATE_SYNC', state })
+        sendMessage(peer, { type: 'CATCHUP_SYNC', payload: buildCatchupSyncForMaster(gameId) })
         return
       }
 

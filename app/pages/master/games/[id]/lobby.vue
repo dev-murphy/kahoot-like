@@ -81,7 +81,7 @@ const teamPlayerCount = (teamId: string) => liveGame.players.filter((p) => p.tea
       <div class="grid gap-6 lg:grid-cols-[320px_1fr]">
         <div class="card flex flex-col items-center gap-4 p-6 text-center">
           <p class="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Game PIN</p>
-          <p class="break-all font-display text-4xl font-extrabold tracking-widest text-indigo-700 dark:text-indigo-400 sm:text-5xl">
+          <p class="break-all font-display text-2xl font-extrabold tracking-widest text-indigo-700 dark:text-indigo-400 sm:text-3xl">
             {{ liveGame.game?.pin }}
           </p>
           <QrCode v-if="joinUrl" :value="joinUrl" :size="200" />

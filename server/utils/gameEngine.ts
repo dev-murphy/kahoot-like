@@ -1,13 +1,14 @@
 import type {
   FullSyncState,
   Game,
-  LeaderboardEntry,
   Player,
   QuestionEndedPayload,
   QuestionStartedPayload,
   Team,
   TeamQuestionResult
 } from '#shared/types'
+import * as catchupEngine from './catchupEngine'
+import { computeLeaderboard } from './leaderboard'
 import { evaluateAnswer, getCorrectAnswerDisplay } from './scoring'
 import { sanitizeQuestion } from './sanitize'
 import * as repo from './repo'
@@ -63,21 +64,9 @@ function generatePin(): string {
   return pin
 }
 
-export function computeLeaderboard(gameId: string, previousRanks: Map<string, number>): LeaderboardEntry[] {
-  const teams = repo.listTeams(gameId)
-  const sorted = [...teams].sort((a, b) => b.score - a.score)
-  return sorted.map((t, idx) => ({
-    teamId: t.id,
-    name: t.name,
-    color: t.color,
-    score: t.score,
-    rank: idx + 1,
-    previousRank: previousRanks.get(t.id) ?? null
-  }))
-}
-
+/** Main-session teams with at least one player — used to detect "everyone answered" for the main question. */
 function activeTeamIds(gameId: string): Set<string> {
-  const players = repo.listPlayers(gameId)
+  const players = repo.listMainPlayers(gameId)
   const withPlayers = new Set(players.filter((p) => p.teamId).map((p) => p.teamId as string))
   return withPlayers
 }
@@ -155,6 +144,12 @@ export function submitAnswer(
   questionId: string,
   answer: unknown
 ): void {
+  const catchupSessionId = catchupEngine.getCatchupSessionIdForPlayer(player)
+  if (catchupSessionId) {
+    catchupEngine.submitCatchupAnswer(catchupSessionId, player, questionId, answer)
+    return
+  }
+
   const game = repo.getGame(gameId)
   const rt = getRuntime(gameId)
 
@@ -264,7 +259,7 @@ export function endQuestion(gameId: string): void {
   const question = questions.find((q) => q.id === rt.currentPayload!.question.id)
   if (!question) return
 
-  const teams = repo.listTeams(gameId)
+  const teams = repo.listMainTeams(gameId)
   const answers = repo.getAnswersForQuestion(question.id)
 
   const teamResults: TeamQuestionResult[] = teams.map((team) => {
@@ -430,10 +425,18 @@ export function restartGame(gameId: string): Game {
 // ---------------------------------------------------------------------------
 
 export function buildFullSyncState(gameId: string, playerId: string | null): FullSyncState | null {
+  if (playerId) {
+    const player = repo.getPlayer(playerId)
+    const catchupSessionId = player ? catchupEngine.getCatchupSessionIdForPlayer(player) : null
+    if (catchupSessionId) {
+      return catchupEngine.buildCatchupSyncStateForPlayer(gameId, catchupSessionId, playerId)
+    }
+  }
+
   const game = repo.getGame(gameId)
   if (!game) return null
-  const teams = repo.listTeams(gameId)
-  const players = repo.listPlayers(gameId)
+  const teams = repo.listMainTeams(gameId)
+  const players = repo.listMainPlayers(gameId)
   const questions = repo.listQuestions(gameId)
   const rt = getRuntime(gameId)
 

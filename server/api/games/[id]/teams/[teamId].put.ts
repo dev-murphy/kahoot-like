@@ -1,6 +1,7 @@
 import { requireGameMaster } from '../../../../utils/auth'
-import { getTeam, updateTeam } from '../../../../utils/repo'
-import { broadcast } from '../../../../utils/wsRegistry'
+import { notifyMaster } from '../../../../utils/catchupEngine'
+import { getTeam, listPlayersForSession, updateTeam } from '../../../../utils/repo'
+import { broadcast, broadcastToPlayers } from '../../../../utils/wsRegistry'
 
 export default defineEventHandler(async (event) => {
   requireGameMaster(event)
@@ -15,6 +16,14 @@ export default defineEventHandler(async (event) => {
     color: body?.color || undefined
   })
   const updated = getTeam(teamId)!
-  broadcast(gameId, { type: 'TEAM_UPDATED', team: updated })
+
+  if (updated.sessionId) {
+    const catchupPlayerIds = new Set(listPlayersForSession(updated.sessionId).map((p) => p.id))
+    broadcastToPlayers(gameId, catchupPlayerIds, { type: 'TEAM_UPDATED', team: updated })
+    notifyMaster(gameId)
+  } else {
+    broadcast(gameId, { type: 'TEAM_UPDATED', team: updated })
+  }
+
   return updated
 })

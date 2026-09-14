@@ -1,5 +1,5 @@
 <script setup lang="ts">
-useHead({ title: 'Join a Game' })
+useHead({ title: 'Live Team Trivia & Kahoot-Style Quiz Game' })
 
 const pin = ref('')
 const router = useRouter()

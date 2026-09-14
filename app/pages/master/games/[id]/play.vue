@@ -57,6 +57,8 @@ function teamAnswered(teamId: string) {
     </header>
 
     <main class="mx-auto max-w-5xl px-6 py-8">
+      <CatchupPanel :game-id="gameId" :mode="liveGame.game?.mode ?? 'TEAM'" class="mb-8" />
+
       <!-- Active question -->
       <section v-if="liveGame.game?.status === 'QUESTION_ACTIVE' && liveGame.currentQuestion" class="mb-8">
         <h1 class="mb-6 text-center font-display text-2xl font-extrabold sm:text-3xl">{{ liveGame.currentQuestion.question.text }}</h1>

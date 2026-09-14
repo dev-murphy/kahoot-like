@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { db } from './db'
 import type {
   AnswerRecord,
+  CatchupSession,
+  CatchupStatus,
   Game,
   GameMode,
   GameStatus,
@@ -73,13 +75,41 @@ function mapQuestion(row: QuestionRow): Question {
 interface TeamRow {
   id: string
   game_id: string
+  session_id: string | null
   name: string
   color: string
   score: number
 }
 
 function mapTeam(row: TeamRow): Team {
-  return { id: row.id, gameId: row.game_id, name: row.name, color: row.color, score: row.score }
+  return {
+    id: row.id,
+    gameId: row.game_id,
+    sessionId: row.session_id,
+    name: row.name,
+    color: row.color,
+    score: row.score
+  }
+}
+
+interface CatchupSessionRow {
+  id: string
+  game_id: string
+  status: string
+  current_question_index: number
+  created_at: number
+  finished_at: number | null
+}
+
+function mapCatchupSession(row: CatchupSessionRow): CatchupSession {
+  return {
+    id: row.id,
+    gameId: row.game_id,
+    status: row.status as CatchupStatus,
+    currentQuestionIndex: row.current_question_index,
+    createdAt: row.created_at,
+    finishedAt: row.finished_at
+  }
 }
 
 interface PlayerRow {
@@ -175,6 +205,31 @@ export function pinExists(pin: string): boolean {
   return !!row
 }
 
+export function gameIdExists(id: string): boolean {
+  const row = db.prepare('SELECT 1 FROM games WHERE id = ?').get(id)
+  return !!row
+}
+
+/** Re-inserts a previously-exported game as-is (same id), used by full-data import/restore. */
+export function restoreGame(game: Game, pin: string | null): void {
+  db.prepare(
+    `INSERT INTO games (id, title, pin, status, mode, current_question_index, result_delay_seconds, paused, created_at, started_at, finished_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    game.id,
+    game.title,
+    pin,
+    game.status,
+    game.mode,
+    game.currentQuestionIndex,
+    game.resultDelaySeconds,
+    game.paused ? 1 : 0,
+    game.createdAt,
+    game.startedAt,
+    game.finishedAt
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Questions
 // ---------------------------------------------------------------------------
@@ -255,6 +310,20 @@ export function deleteQuestions(ids: string[]): void {
   tx(ids)
 }
 
+/** Re-inserts previously-exported questions as-is (same ids), used by full-data import/restore. */
+export function restoreQuestions(questions: Question[]): void {
+  const insert = db.prepare(
+    `INSERT INTO questions (id, game_id, type, text, config, time_limit, points, order_index)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+  const tx = db.transaction((rows: Question[]) => {
+    rows.forEach((q) => {
+      insert.run(q.id, q.gameId, q.type, q.text, JSON.stringify(q.config), q.timeLimit, q.points, q.order)
+    })
+  })
+  tx(questions)
+}
+
 export function reorderQuestions(gameId: string, orderedIds: string[]): void {
   const stmt = db.prepare('UPDATE questions SET order_index = ? WHERE id = ? AND game_id = ?')
   const tx = db.transaction((ids: string[]) => {
@@ -272,20 +341,43 @@ export function listTeams(gameId: string): Team[] {
   return rows.map(mapTeam)
 }
 
+/** Main-session teams only (excludes teams formed within a catch-up session). */
+export function listMainTeams(gameId: string): Team[] {
+  const rows = db
+    .prepare('SELECT * FROM teams WHERE game_id = ? AND session_id IS NULL ORDER BY rowid ASC')
+    .all(gameId) as TeamRow[]
+  return rows.map(mapTeam)
+}
+
+export function listTeamsForSession(sessionId: string): Team[] {
+  const rows = db.prepare('SELECT * FROM teams WHERE session_id = ? ORDER BY rowid ASC').all(sessionId) as TeamRow[]
+  return rows.map(mapTeam)
+}
+
 export function getTeam(id: string): Team | null {
   const row = db.prepare('SELECT * FROM teams WHERE id = ?').get(id) as TeamRow | undefined
   return row ? mapTeam(row) : null
 }
 
-export function createTeam(gameId: string, name: string, color: string): Team {
+export function createTeam(gameId: string, name: string, color: string, sessionId: string | null = null): Team {
   const id = randomUUID()
-  db.prepare('INSERT INTO teams (id, game_id, name, color, score) VALUES (?, ?, ?, ?, 0)').run(
+  db.prepare('INSERT INTO teams (id, game_id, session_id, name, color, score) VALUES (?, ?, ?, ?, ?, 0)').run(
     id,
     gameId,
+    sessionId,
     name,
     color
   )
   return getTeam(id)!
+}
+
+/** Re-inserts previously-exported teams as-is (same ids, preserving score), used by full-data import/restore. */
+export function restoreTeams(teams: Team[]): void {
+  const insert = db.prepare('INSERT INTO teams (id, game_id, name, color, score) VALUES (?, ?, ?, ?, ?)')
+  const tx = db.transaction((rows: Team[]) => {
+    rows.forEach((t) => insert.run(t.id, t.gameId, t.name, t.color, t.score))
+  })
+  tx(teams)
 }
 
 export function updateTeam(id: string, fields: { name?: string; color?: string }): void {
@@ -310,11 +402,74 @@ export function deleteTeam(id: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// Catch-up sessions
+// ---------------------------------------------------------------------------
+
+export function createCatchupSession(gameId: string): CatchupSession {
+  const id = randomUUID()
+  db.prepare(
+    `INSERT INTO catchup_sessions (id, game_id, status, current_question_index, created_at, finished_at)
+     VALUES (?, ?, 'LOBBY', 0, ?, NULL)`
+  ).run(id, gameId, Date.now())
+  return getCatchupSession(id)!
+}
+
+export function getCatchupSession(id: string): CatchupSession | null {
+  const row = db.prepare('SELECT * FROM catchup_sessions WHERE id = ?').get(id) as CatchupSessionRow | undefined
+  return row ? mapCatchupSession(row) : null
+}
+
+/** The game's current non-finished catch-up session, if any (only one is allowed at a time). */
+export function getActiveCatchupSession(gameId: string): CatchupSession | null {
+  const row = db
+    .prepare("SELECT * FROM catchup_sessions WHERE game_id = ? AND status != 'FINISHED' ORDER BY created_at DESC LIMIT 1")
+    .get(gameId) as CatchupSessionRow | undefined
+  return row ? mapCatchupSession(row) : null
+}
+
+export function updateCatchupStatus(id: string, status: CatchupStatus): void {
+  db.prepare('UPDATE catchup_sessions SET status = ? WHERE id = ?').run(status, id)
+}
+
+export function setCatchupQuestionIndex(id: string, index: number): void {
+  db.prepare('UPDATE catchup_sessions SET current_question_index = ? WHERE id = ?').run(index, id)
+}
+
+export function markCatchupSessionFinished(id: string): void {
+  db.prepare("UPDATE catchup_sessions SET status = 'FINISHED', finished_at = ? WHERE id = ?").run(Date.now(), id)
+}
+
+// ---------------------------------------------------------------------------
 // Players
 // ---------------------------------------------------------------------------
 
 export function listPlayers(gameId: string): Player[] {
   const rows = db.prepare('SELECT * FROM players WHERE game_id = ? ORDER BY joined_at ASC').all(gameId) as PlayerRow[]
+  return rows.map(mapPlayer)
+}
+
+/** Main-session players only — those with no team, or a team not scoped to a catch-up session. */
+export function listMainPlayers(gameId: string): Player[] {
+  const rows = db
+    .prepare(
+      `SELECT players.* FROM players
+       LEFT JOIN teams ON teams.id = players.team_id
+       WHERE players.game_id = ? AND teams.session_id IS NULL
+       ORDER BY players.joined_at ASC`
+    )
+    .all(gameId) as PlayerRow[]
+  return rows.map(mapPlayer)
+}
+
+export function listPlayersForSession(sessionId: string): Player[] {
+  const rows = db
+    .prepare(
+      `SELECT players.* FROM players
+       JOIN teams ON teams.id = players.team_id
+       WHERE teams.session_id = ?
+       ORDER BY players.joined_at ASC`
+    )
+    .all(sessionId) as PlayerRow[]
   return rows.map(mapPlayer)
 }
 
@@ -344,6 +499,18 @@ export function createPlayer(gameId: string, name: string, teamId: string | null
      VALUES (?, ?, ?, ?, ?, 0, ?)`
   ).run(id, gameId, teamId, name, token, now)
   return { player: getPlayer(id)!, token }
+}
+
+/** Re-inserts previously-exported players as-is (same ids, fresh session tokens), used by full-data import/restore. */
+export function restorePlayers(players: Player[]): void {
+  const insert = db.prepare(
+    `INSERT INTO players (id, game_id, team_id, name, session_token, connected, joined_at)
+     VALUES (?, ?, ?, ?, ?, 0, ?)`
+  )
+  const tx = db.transaction((rows: Player[]) => {
+    rows.forEach((p) => insert.run(p.id, p.gameId, p.teamId, p.name, randomUUID(), p.joinedAt))
+  })
+  tx(players)
 }
 
 export function setPlayerTeam(id: string, teamId: string | null): void {
@@ -378,6 +545,20 @@ export function createAnswer(input: Omit<AnswerRecord, 'id'>): AnswerRecord {
     input.submittedAt
   )
   return { ...input, id }
+}
+
+/** Re-inserts previously-exported answers as-is (same ids), used by full-data import/restore. */
+export function restoreAnswers(answers: AnswerRecord[]): void {
+  const insert = db.prepare(
+    `INSERT INTO answers (id, question_id, player_id, team_id, answer, correct, score, submitted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+  const tx = db.transaction((rows: AnswerRecord[]) => {
+    rows.forEach((a) => {
+      insert.run(a.id, a.questionId, a.playerId, a.teamId, JSON.stringify(a.answer), a.correct ? 1 : 0, a.score, a.submittedAt)
+    })
+  })
+  tx(answers)
 }
 
 interface AnswerRow {
